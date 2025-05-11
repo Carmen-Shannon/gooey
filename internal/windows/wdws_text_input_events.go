@@ -171,24 +171,28 @@ func getWordBounds(text string, caret int32) (int32, int32) {
 		caret--
 	}
 	// If caret is on a space, move left to the nearest non-space
-	for caret > 0 && runes[caret] == ' ' {
+	for caret > 0 && isSeperator(runes[caret]) {
 		caret--
 	}
 	// If still on a space, no word to select
-	if runes[caret] == ' ' {
+	if isSeperator(runes[caret]) {
 		return caret, caret
 	}
 	// Find word start
 	start := caret
-	for start > 0 && runes[start-1] != ' ' {
+	for start > 0 && !isSeperator(runes[start-1]) {
 		start--
 	}
 	// Find word end
 	end := caret + 1
-	for end < n && runes[end] != ' ' {
+	for end < n && !isSeperator(runes[end]) {
 		end++
 	}
 	return start, end
+}
+
+func isSeperator(ch rune) bool {
+	return ch == ' ' || ch == '/' || ch == '\\' || ch == '.'
 }
 
 // handleTextInputSelectionCallbacks handles the selection callbacks for text input components.

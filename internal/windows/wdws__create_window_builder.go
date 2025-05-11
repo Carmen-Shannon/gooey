@@ -62,9 +62,9 @@ type CreateWindowBuilderOpt func(*createWindowBuilderOpts)
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its ExStyle field.
 func CreateWindowOptExStyle(exStyle uint32) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.ExStyle = exStyle
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.ExStyle = exStyle
+    }
 }
 
 // CreateWindowOptClassName sets the class name for the window being created.
@@ -75,9 +75,9 @@ func CreateWindowOptExStyle(exStyle uint32) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its ClassName field.
 func CreateWindowOptClassName(className *uint16) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.ClassName = className
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.ClassName = className
+    }
 }
 
 // CreateWindowOptWindowName sets the window name (title) for the window being created.
@@ -88,9 +88,9 @@ func CreateWindowOptClassName(className *uint16) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its WindowName field.
 func CreateWindowOptWindowName(windowName *uint16) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.WindowName = windowName
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.WindowName = windowName
+    }
 }
 
 // CreateWindowOptStyle sets the style flags for the window being created.
@@ -101,9 +101,9 @@ func CreateWindowOptWindowName(windowName *uint16) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its Style field.
 func CreateWindowOptStyle(style uint32) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.Style = style
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.Style = style
+    }
 }
 
 // CreateWindowOptPosition sets the position of the window being created.
@@ -115,10 +115,10 @@ func CreateWindowOptStyle(style uint32) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its X and Y fields.
 func CreateWindowOptPosition(x, y int32) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.X = x
-		opts.Y = y
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.X = x
+        opts.Y = y
+    }
 }
 
 // CreateWindowOptSize sets the size of the window being created.
@@ -130,10 +130,10 @@ func CreateWindowOptPosition(x, y int32) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its Width and Height fields.
 func CreateWindowOptSize(width, height int32) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.Width = width
-		opts.Height = height
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.Width = width
+        opts.Height = height
+    }
 }
 
 // CreateWindowOptParent sets the parent window handle for the window being created.
@@ -144,9 +144,9 @@ func CreateWindowOptSize(width, height int32) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its Parent field.
 func CreateWindowOptParent(parent windows.Handle) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.Parent = parent
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.Parent = parent
+    }
 }
 
 // CreateWindowOptMenu sets the menu handle for the window being created.
@@ -157,9 +157,9 @@ func CreateWindowOptParent(parent windows.Handle) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its Menu field.
 func CreateWindowOptMenu(menu windows.Handle) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.Menu = menu
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.Menu = menu
+    }
 }
 
 // CreateWindowOptInstance sets the instance handle for the window being created.
@@ -170,9 +170,9 @@ func CreateWindowOptMenu(menu windows.Handle) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its Instance field.
 func CreateWindowOptInstance(instance windows.Handle) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.Instance = instance
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.Instance = instance
+    }
 }
 
 // CreateWindowOptParam sets the additional parameter for the window being created.
@@ -183,7 +183,7 @@ func CreateWindowOptInstance(instance windows.Handle) CreateWindowBuilderOpt {
 // Returns:
 //   - CreateWindowBuilderOpt: A function that takes a pointer to createWindowBuilderOpts and sets its Param field.
 func CreateWindowOptParam(param unsafe.Pointer) CreateWindowBuilderOpt {
-	return func(opts *createWindowBuilderOpts) {
-		opts.Param = param
-	}
+    return func(opts *createWindowBuilderOpts) {
+        opts.Param = param
+    }
 }
