@@ -5,9 +5,9 @@ package window
 
 import (
 	"fmt"
-	"gooey/common"
-	"gooey/component"
-	wdws "gooey/internal/windows"
+	"github.com/Carmen-Shannon/gooey/common"
+	"github.com/Carmen-Shannon/gooey/component"
+	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 	"strings"
 	"sync"
 	"time"

@@ -1,6 +1,6 @@
 package window
 
-import "gooey/common"
+import "github.com/Carmen-Shannon/gooey/common"
 
 type newWindowOption struct {
 	Title           string

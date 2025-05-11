@@ -5,7 +5,7 @@ package wdws
 
 import (
 	"fmt"
-	"gooey/common"
+	"github.com/Carmen-Shannon/gooey/common"
 	"sync"
 	"unsafe"
 

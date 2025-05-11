@@ -4,8 +4,8 @@
 package component
 
 import (
-	"gooey/common"
-	wdws "gooey/internal/windows"
+	"github.com/Carmen-Shannon/gooey/common"
+	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 )
 
 // drawTextInput handles drawing the text input component on the windows platform.

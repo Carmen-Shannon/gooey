@@ -1,7 +1,7 @@
 package component
 
 import (
-	"gooey/common"
+	"github.com/Carmen-Shannon/gooey/common"
 )
 
 type button struct {

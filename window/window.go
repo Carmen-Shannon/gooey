@@ -1,8 +1,8 @@
 package window
 
 import (
-	"gooey/common"
-	"gooey/component"
+	"github.com/Carmen-Shannon/gooey/common"
+	"github.com/Carmen-Shannon/gooey/component"
 	"runtime"
 	"slices"
 	"sync"

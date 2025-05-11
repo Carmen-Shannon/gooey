@@ -4,7 +4,7 @@
 package wdws
 
 import (
-	"gooey/common"
+	"github.com/Carmen-Shannon/gooey/common"
 
 	"golang.org/x/sys/windows"
 )

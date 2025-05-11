@@ -4,8 +4,8 @@
 package component
 
 import (
-	"gooey/common"
-	wdws "gooey/internal/windows"
+	"github.com/Carmen-Shannon/gooey/common"
+	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 )
 
 // drawButton handles the drawing of the button component on the windows platform.

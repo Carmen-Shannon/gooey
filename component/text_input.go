@@ -1,6 +1,6 @@
 package component
 
-import "gooey/common"
+import "github.com/Carmen-Shannon/gooey/common"
 
 type textInput struct {
 	baseComponent

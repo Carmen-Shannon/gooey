@@ -4,7 +4,7 @@
 package component
 
 import (
-	wdws "gooey/internal/windows"
+	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 )
 
 // drawLabel handles the drawing of the label component on the windows platform.

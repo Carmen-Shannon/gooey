@@ -1,4 +1,4 @@
-module gooey
+module github.com/Carmen-Shannon/gooey
 
 go 1.24.2
 
