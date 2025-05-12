@@ -61,7 +61,7 @@ func drawTextInput(ctx *common.DrawCtx, ti TextInput) {
 	linux.XDrawTextRect(display, drawable, textRectX, textRectY, textRectW, textRectH, fontName, fontSize, text, textColor, linux.ALIGN_LEFT|linux.ALIGN_VCENTER|linux.ALIGN_SINGLELINE)
 
 	// Draw caret if focused and no selection
-	if ti.Focused() && selStart == selEnd {
+	if linux.CT.Visible && ti.Focused() && selStart == selEnd {
 		caretPos := int(ti.Caret())
 		runes := []rune(text)
 		if caretPos < 0 {

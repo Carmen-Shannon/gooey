@@ -132,16 +132,23 @@ func run(w *wdw, refresh int) {
 	var event linux.C_XEvent
 
 	for {
-		select {
-		case <-w.redraw:
-			linux.HandlePaint(w.ID, display)
-			linux.XFlush(display)
-		default:
+		// 1. Handle all pending X events (non-blocking)
+		for linux.XPending(display) > 0 {
 			linux.XNextEvent(display, &event)
 			cont := linux.WindowProc(w.ID, display, &event)
 			if !cont {
 				return
 			}
+		}
+
+		// 2. Handle redraw requests (non-blocking)
+		select {
+		case <-w.redraw:
+			linux.HandlePaint(w.ID, display)
+			linux.XFlush(display)
+		default:
+			// Sleep briefly to avoid busy-waiting
+			time.Sleep(2 * time.Millisecond)
 		}
 	}
 }

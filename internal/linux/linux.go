@@ -48,6 +48,7 @@ import (
 type C_Window = C.Window
 type C_XEvent = C.XEvent
 type C_Drawable = C.Drawable
+type C_Display = C.Display
 
 var (
 	displayMap          = make(map[uintptr]uintptr)
@@ -79,6 +80,7 @@ const (
 	C_DESTROYNOTIFY   = 17
 	C_BUTTONPRESS     = 4
 	C_BUTTONRELEASE   = 5
+	C_MOTIONNOTIFY    = 6
 
 	// Text Alignment
 	ALIGN_LEFT       = 0
@@ -114,11 +116,28 @@ func WindowProc(hwnd uintptr, display *C.Display, event *C.XEvent) bool {
 		x, y := GetMouseState(hwnd)
 		btnId, btnFound := FindButtonAt(x, y)
 		handleButtonCallbacks(btnId, btnFound, true)
+		tiId, tiFound := FindTextInputAt(x, y)
+		handleTextInputClickCallbacks(tiId, tiFound, hwnd, x)
 		return true
 	case C_BUTTONRELEASE:
 		x, y := GetMouseState(hwnd)
 		btnId, btnFound := FindButtonAt(x, y)
 		handleButtonCallbacks(btnId, btnFound, false)
+		tiId, tiFound := FindTextInputAt(x, y)
+		if tiFound && HLTR.TextInputID == tiId {
+			updateTextInputSelection(tiId, hwnd, x, "end")
+			handleTextInputCaretCallbacks(tiId)
+		}
+		HLTR.Active = false
+		return true
+	case C_MOTIONNOTIFY:
+		x, y := GetMouseState(hwnd)
+		if HLTR.Active && HLTR.TextInputID != 0 && !HLTR.SuppressSelection {
+			tiId, tiFound := FindTextInputAt(x, y)
+			if tiFound && tiId == HLTR.TextInputID {
+				updateTextInputSelection(tiId, hwnd, x, "update")
+			}
+		}
 		return true
 	default:
 	}
@@ -185,6 +204,10 @@ func LoadIBeamCursor(display *C.Display) C.Cursor {
 func SetCursor(display *C.Display, window C.Window, cursor C.Cursor) {
 	C.XDefineCursor(display, window, cursor)
 	C.XFlush(display)
+}
+
+func XPending(display *C.Display) int {
+	return int(C.XPending(display))
 }
 
 func XFlush(display *C.Display) {
