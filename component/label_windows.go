@@ -4,6 +4,7 @@
 package component
 
 import (
+	"github.com/Carmen-Shannon/gooey/common"
 	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 )
 
@@ -14,7 +15,7 @@ import (
 // Parameters:
 //   - hdc: Handle to the device context where the label will be drawn.
 //   - l: The Label component to be drawn.
-func drawLabel(hdc uintptr, l Label) {
+func drawLabel(ctx *common.DrawCtx, l Label) {
 	x, y := l.Position()
 	w, h := l.Size()
 	var rect = [4]int32{x, y, x + w, y + h}
@@ -26,24 +27,24 @@ func drawLabel(hdc uintptr, l Label) {
 	// Only shrink font size if text is too wide and word wrap is off
 	if !l.WordWrap() {
 		hFont := wdws.CreateFont(-fontSize, fontName)
-		textWidth, _ := wdws.MeasureText(hdc, hFont, text)
+		textWidth, _ := wdws.MeasureText(ctx.Hdc, hFont, text)
 		for textWidth > w && fontSize > 12 {
 			fontSize--
 			hFont = wdws.CreateFont(-fontSize, fontName)
-			textWidth, _ = wdws.MeasureText(hdc, hFont, text)
+			textWidth, _ = wdws.MeasureText(ctx.Hdc, hFont, text)
 		}
 	}
 
 	hFont := wdws.CreateFont(-fontSize, fontName)
 	if hFont != 0 {
-		oldFont := wdws.SelectObject(hdc, hFont)
+		oldFont := wdws.SelectObject(ctx.Hdc, hFont)
 		defer func() {
-			wdws.SelectObject(hdc, oldFont)
+			wdws.SelectObject(ctx.Hdc, oldFont)
 		}()
 	}
 
-	wdws.SetTextColor(hdc, l.Color())
-	wdws.SetBkMode(hdc, wdws.BK_TRANSPARENT)
+	wdws.SetTextColor(ctx.Hdc, l.Color())
+	wdws.SetBkMode(ctx.Hdc, wdws.BK_TRANSPARENT)
 
 	var alignment uint32
 	switch l.TextAlignment() {
@@ -60,7 +61,7 @@ func drawLabel(hdc uintptr, l Label) {
 		format |= wdws.DT_WORDBREAK
 		// Only expand height if needed, never shrink
 		calcRect := rect
-		wdws.DrawText(hdc, text, &calcRect, format|wdws.DT_CALCRECT)
+		wdws.DrawText(ctx.Hdc, text, &calcRect, format|wdws.DT_CALCRECT)
 		newHeight := calcRect[3] - calcRect[1]
 		if newHeight > h {
 			if lbl, ok := l.(*label); ok {
@@ -72,5 +73,5 @@ func drawLabel(hdc uintptr, l Label) {
 		format |= wdws.DT_VCENTER | wdws.DT_SINGLELINE
 	}
 
-	wdws.DrawText(hdc, text, &rect, format)
+	wdws.DrawText(ctx.Hdc, text, &rect, format)
 }

@@ -2,6 +2,7 @@ package component
 
 import (
 	"fmt"
+
 	"github.com/Carmen-Shannon/gooey/common"
 )
 
@@ -31,10 +32,10 @@ const (
 // It accepts a variadic list of CreateComponentOption functions to customize the component's properties.
 //
 // Parameters:
-//  - options: A variadic list of CreateComponentOption functions to customize the component's properties.
+//   - options: A variadic list of CreateComponentOption functions to customize the component's properties.
 //
 // Returns:
-//  - Component: A pointer to the newly created component.
+//   - Component: A pointer to the newly created component.
 func NewComponent(options ...CreateComponentOption) Component {
 	opts := &createComponentOptions{}
 	for _, opt := range options {
@@ -133,12 +134,6 @@ type Component interface {
 	// Parameters:
 	//  - ctx: The context to use for drawing the component.
 	Draw(ctx *common.DrawCtx)
-
-	// HandleEvent handles events for the component.
-	//
-	// Parameters:
-	//  - event: The event to handle.
-	HandleEvent(event any)
 }
 
 var _ Component = (*baseComponent)(nil)
@@ -190,10 +185,6 @@ func (c *baseComponent) Draw(ctx *common.DrawCtx) {
 	panic("Draw must be implemented by a concrete component type")
 }
 
-func (c *baseComponent) HandleEvent(event any) {
-	handleEvent(c, event)
-}
-
 // drawComponent is a helper function to draw a component based on its type.
 // All component types should implement the Draw method that calls this drawComponent function.
 //
@@ -204,15 +195,15 @@ func drawComponent(c any, ctx *common.DrawCtx) {
 	switch comp := any(c).(type) {
 	case Button:
 		if comp.Visible() {
-			drawButton(ctx.Hdc, comp)
+			drawButton(ctx, comp)
 		}
 	case Label:
 		if comp.Visible() {
-			drawLabel(ctx.Hdc, comp)
+			drawLabel(ctx, comp)
 		}
 	case TextInput:
 		if comp.Visible() {
-			drawTextInput(ctx.Hdc, comp)
+			drawTextInput(ctx, comp)
 		}
 	default:
 		fmt.Println("unsupported component type")

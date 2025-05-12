@@ -1,11 +1,12 @@
 package window
 
 import (
-	"github.com/Carmen-Shannon/gooey/common"
-	"github.com/Carmen-Shannon/gooey/component"
 	"runtime"
 	"slices"
 	"sync"
+
+	"github.com/Carmen-Shannon/gooey/common"
+	"github.com/Carmen-Shannon/gooey/component"
 )
 
 type wdw struct {
@@ -17,6 +18,8 @@ type wdw struct {
 	Title           string
 	BackgroundColor common.Color
 	Components      []component.Component
+
+	redraw chan struct{}
 }
 
 type Window interface {

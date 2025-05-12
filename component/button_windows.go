@@ -16,7 +16,7 @@ import (
 // Parameters:
 //   - hdc: Handle to the device context where the button will be drawn.
 //   - b: The Button component to be drawn.
-func drawButton(hdc uintptr, b Button) {
+func drawButton(ctx *common.DrawCtx, b Button) {
 	x, y := b.Position()
 	w, h := b.Size()
 
@@ -36,25 +36,25 @@ func drawButton(hdc uintptr, b Button) {
 	brush := wdws.CreateSolidBrush(color)
 	defer wdws.DeleteObject(brush)
 
-	oldBrush := wdws.SelectObject(hdc, brush)
-	defer wdws.SelectObject(hdc, oldBrush)
+	oldBrush := wdws.SelectObject(ctx.Hdc, brush)
+	defer wdws.SelectObject(ctx.Hdc, oldBrush)
 
-	_ = wdws.DrawRectangle(hdc, x, y, x+w, y+h, radius)
+	_ = wdws.DrawRectangle(ctx.Hdc, x, y, x+w, y+h, radius)
 
 	fontName := b.LabelFont()
 	fontSize := b.LabelSize()
 	hFont := wdws.CreateFont(-fontSize, fontName)
 	if hFont != 0 {
-		oldFont := wdws.SelectObject(hdc, hFont)
+		oldFont := wdws.SelectObject(ctx.Hdc, hFont)
 		defer func() {
-			wdws.SelectObject(hdc, oldFont)
+			wdws.SelectObject(ctx.Hdc, oldFont)
 			wdws.DeleteObject(hFont)
 		}()
 	}
 
-	wdws.SetTextColor(hdc, b.LabelColor())
-	wdws.SetBkMode(hdc, wdws.BK_TRANSPARENT)
-	wdws.DrawText(hdc, b.Label(), &rect, wdws.DT_CENTER|wdws.DT_VCENTER|wdws.DT_SINGLELINE)
+	wdws.SetTextColor(ctx.Hdc, b.LabelColor())
+	wdws.SetBkMode(ctx.Hdc, wdws.BK_TRANSPARENT)
+	wdws.DrawText(ctx.Hdc, b.Label(), &rect, wdws.DT_CENTER|wdws.DT_VCENTER|wdws.DT_SINGLELINE)
 }
 
 // mapBtnCb maps a button callback to a specific button ID.
@@ -64,7 +64,7 @@ func drawButton(hdc uintptr, b Button) {
 //   - b: The Button component to map the callback for.
 //   - cbMap: A map of callback functions for the button.
 func mapBtnCb(b Button, cbMap map[string]func(any)) {
-    wdws.RegisterButtonCallback(b.ID(), cbMap)
+	wdws.RegisterButtonCallback(b.ID(), cbMap)
 }
 
 // registerBtnBounds registers the button's bounds in the Windows API.
@@ -73,7 +73,7 @@ func mapBtnCb(b Button, cbMap map[string]func(any)) {
 // Parameters:
 //   - b: The Button component to register the bounds for.
 func registerBtnBounds(b Button) {
-    x, y := b.Position()
-    w, h := b.Size()
-    wdws.RegisterButtonBounds(b.ID(), [4]int32{x, y, w, h})
+	x, y := b.Position()
+	w, h := b.Size()
+	wdws.RegisterButtonBounds(b.ID(), [4]int32{x, y, w, h})
 }
