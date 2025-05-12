@@ -91,7 +91,6 @@ func drawComponents(w *wdw, ctx *common.DrawCtx) {
 		return
 	}
 
-	// Get mouse position (implement GetMouseState for Linux if needed)
 	x, y := linux.GetMouseState(w.ID)
 	display := linux.GetDisplay(w.ID)
 	window := linux.C_Window(w.ID)
@@ -135,9 +134,7 @@ func run(w *wdw, refresh int) {
 	for {
 		select {
 		case <-w.redraw:
-			// Call your drawing logic directly
 			linux.HandlePaint(w.ID, display)
-			// Optionally flush to X server
 			linux.XFlush(display)
 		default:
 			linux.XNextEvent(display, &event)
@@ -181,13 +178,6 @@ func startDrawHandler(w *wdw, fps int) {
 			case w.redraw <- struct{}{}:
 			default:
 			}
-			// display := linux.GetDisplay(w.ID)
-			// if display == nil {
-			// 	continue
-			// }
-			// window := linux.C_Window(w.ID)
-			// // Trigger an Expose event by clearing a 1x1 area (does not actually clear, just triggers event)
-			// linux.XClearArea(display, window, 0, 0, 0, 0, true)
 		}
 	}()
 }
