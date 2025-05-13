@@ -3,10 +3,29 @@
 
 package linux
 
-import "github.com/Carmen-Shannon/gooey/common"
+/*
+#cgo LDFLAGS: -lX11
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
+#include <X11/cursorfont.h>
+#include <stdlib.h>
+*/
+import "C"
+import (
+	"os/exec"
+
+	"github.com/Carmen-Shannon/gooey/common"
+)
 
 func handleTextInputClickCallbacks(id uintptr, found bool, hwnd uintptr, mouseX int32, doubleClick ...bool) {
 	isDoubleClick := len(doubleClick) > 0 && doubleClick[0]
+
+	// Suppress further selection updates if a double-click just occurred
+	if HLTR.SuppressSelection && !isDoubleClick {
+		return
+	}
+
 	if found {
 		HLTR.TextInputID = id
 		state := GetTextInputState(id)
@@ -100,7 +119,193 @@ func handleTextInputCaretCallbacks(id uintptr) {
 	}
 }
 
+// Copy selected text to clipboard using xclip
+func handleTextInputCopy(id uintptr) {
+	state := GetTextInputState(id)
+	if state == nil {
+		return
+	}
+	start, end := HLTR.SelectionStart, HLTR.SelectionEnd
+	if start > end {
+		start, end = end, start
+	}
+	runes := []rune(state.Value)
+	if start < 0 || end > int32(len(runes)) || start == end {
+		return // nothing to copy
+	}
+	text := string(runes[start:end])
+	cmd := exec.Command("xclip", "-selection", "clipboard")
+	in, err := cmd.StdinPipe()
+	if err != nil {
+		return
+	}
+	if err := cmd.Start(); err != nil {
+		return
+	}
+	in.Write([]byte(text))
+	in.Close()
+	cmd.Wait()
+}
+
+// Paste clipboard text at caret using xclip
+func handleTextInputPaste(id uintptr) {
+	state := GetTextInputState(id)
+	if state == nil {
+		return
+	}
+	out, err := exec.Command("xclip", "-selection", "clipboard", "-o").Output()
+	if err != nil {
+		return
+	}
+	clipText := string(out)
+	if clipText == "" {
+		return
+	}
+	runes := []rune(state.Value)
+	start, end := HLTR.SelectionStart, HLTR.SelectionEnd
+	if start > end {
+		start, end = end, start
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end > int32(len(runes)) {
+		end = int32(len(runes))
+	}
+
+	newVal := string(runes[:start]) + clipText + string(runes[end:])
+	if state.MaxLength > 0 && int32(len([]rune(newVal))) > state.MaxLength {
+		allowed := state.MaxLength - int32(len([]rune(string(runes[:start])+string(runes[end:]))))
+		if allowed < 0 {
+			allowed = 0
+		}
+		clipRunes := []rune(clipText)
+		clipText = string(clipRunes[:allowed])
+		newVal = string(runes[:start]) + clipText + string(runes[end:])
+	}
+
+	newCaret := start + int32(len([]rune(clipText)))
+	UpdateTextInputState(id,
+		common.UpdateTIStateValue(newVal),
+		common.UpdateTISelectionStart(newCaret),
+		common.UpdateTISelectionEnd(newCaret),
+		common.UpdateTICaretPos(newCaret),
+	)
+	HLTR.SelectionStart = newCaret
+	HLTR.SelectionEnd = newCaret
+	if cb, ok := state.CbMap["value"]; ok {
+		cb(newVal)
+	}
+	if cb, ok := state.CbMap["caretPos"]; ok {
+		cb(newCaret)
+	}
+	handleTextInputSelectionCallbacks(id, newCaret, newCaret)
+}
+
+// handleTextInputBackspace removes the selected text or the character before the caret.
+func handleTextInputBackspace(id uintptr) {
+	state := GetTextInputState(id)
+	if state == nil {
+		return
+	}
+	runes := []rune(state.Value)
+	start, end := HLTR.SelectionStart, HLTR.SelectionEnd
+	if start > end {
+		start, end = end, start
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end > int32(len(runes)) {
+		end = int32(len(runes))
+	}
+
+	var newVal string
+	var newCaret int32
+	if start != end {
+		// Remove selection
+		newVal = string(runes[:start]) + string(runes[end:])
+		newCaret = start
+	} else if start > 0 {
+		// Remove character before caret
+		newVal = string(runes[:start-1]) + string(runes[start:])
+		newCaret = start - 1
+	} else {
+		// Nothing to delete
+		return
+	}
+
+	UpdateTextInputState(id,
+		common.UpdateTIStateValue(newVal),
+		common.UpdateTISelectionStart(newCaret),
+		common.UpdateTISelectionEnd(newCaret),
+		common.UpdateTICaretPos(newCaret),
+	)
+	HLTR.SelectionStart = newCaret
+	HLTR.SelectionEnd = newCaret
+	if cb, ok := state.CbMap["value"]; ok {
+		cb(newVal)
+	}
+	if cb, ok := state.CbMap["caretPos"]; ok {
+		cb(newCaret)
+	}
+	handleTextInputSelectionCallbacks(id, newCaret, newCaret)
+}
+
+// handleTextInputDelete removes the selected text or the character at the caret.
+func handleTextInputDelete(id uintptr) {
+	state := GetTextInputState(id)
+	if state == nil {
+		return
+	}
+	runes := []rune(state.Value)
+	start, end := HLTR.SelectionStart, HLTR.SelectionEnd
+	if start > end {
+		start, end = end, start
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end > int32(len(runes)) {
+		end = int32(len(runes))
+	}
+
+	var newVal string
+	var newCaret int32
+	if start != end {
+		// Remove selection
+		newVal = string(runes[:start]) + string(runes[end:])
+		newCaret = start
+	} else if end < int32(len(runes)) {
+		// Remove character at caret
+		newVal = string(runes[:end]) + string(runes[end+1:])
+		newCaret = end
+	} else {
+		// Nothing to delete
+		return
+	}
+
+	UpdateTextInputState(id,
+		common.UpdateTIStateValue(newVal),
+		common.UpdateTISelectionStart(newCaret),
+		common.UpdateTISelectionEnd(newCaret),
+		common.UpdateTICaretPos(newCaret),
+	)
+	HLTR.SelectionStart = newCaret
+	HLTR.SelectionEnd = newCaret
+	if cb, ok := state.CbMap["value"]; ok {
+		cb(newVal)
+	}
+	if cb, ok := state.CbMap["caretPos"]; ok {
+		cb(newCaret)
+	}
+	handleTextInputSelectionCallbacks(id, newCaret, newCaret)
+}
+
 func updateTextInputSelection(id uintptr, hwnd uintptr, mouseX int32, event string) {
+	if HLTR.SuppressSelection {
+		return
+	}
 	caret := getCaretPosForTextInput(id, hwnd, mouseX)
 	switch event {
 	case "start":
