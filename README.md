@@ -40,14 +40,14 @@ If you want to add components, they are customizable in the same builder-pattern
 // ... from within the main function
 
 func main() {
-    w := window.NewWindow(
-		window.TitleOpt("Gooey Example"),
+	w := window.NewWindow(
+		window.TitleOpt("Gooey Example 69420"),
 		window.WidthOpt(1200),
 		window.HeightOpt(800),
 		window.BackgroundColorOpt(&common.Color{Red: 79, Green: 71, Blue: 92}),
 	)
 
-    label := component.NewLabel(
+	label := component.NewLabel(
 		component.LabelTextOpt("Hello, Gooey!"),
 		component.LabelColorOpt(common.ColorGreen),
 		component.LabelTextSizeOpt(12),
@@ -56,8 +56,21 @@ func main() {
 			component.ComponentIDOpt(uintptr(70)),
 			component.ComponentSizeOpt(100, 25),
 			component.ComponentPositionOpt(100, 150),
-			component.ComponentVisibleOpt(true),
+			component.ComponentVisibleOpt(false),
 			component.ComponentEnabledOpt(true),
+		),
+	)
+
+	sel := component.NewSelector(
+		component.SelectorColorOpt(common.ColorLightGray),
+		component.SelectorOpacityOpt(0.5),
+		component.SelectorDrawingOpt(false),
+		component.SelectorComponentOptionsOpt(
+			component.ComponentIDOpt(uintptr(67)),
+			component.ComponentVisibleOpt(false),
+			component.ComponentEnabledOpt(true),
+			component.ComponentSizeOpt(400, 400),
+			component.ComponentPositionOpt(400, 400),
 		),
 	)
 
@@ -72,6 +85,7 @@ func main() {
 		component.ButtonRoundnessOpt(50),
 		component.ButtonOnClickOpt(func() {
 			label.SetVisible(!label.Visible())
+			sel.StartCapture()
 		}),
 		component.ButtonComponentOptionsOpt(
 			component.ComponentIDOpt(uintptr(69)),
@@ -101,6 +115,7 @@ func main() {
 	w.AddComponent(btn)
 	w.AddComponent(label)
 	w.AddComponent(ti)
+	w.AddComponent(sel)
 	w.Run(60)
 }
 ```
