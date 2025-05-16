@@ -186,10 +186,7 @@ func drawComponents(w *wdw, ctx *common.DrawCtx) {
 //   - w: A pointer to the window to run.
 //   - refresh: The refresh rate in frames per second (FPS) for the window's drawing.
 func run(w *wdw, refresh int) {
-	err := setWindowDisplay(w, WindowDisplayFlagShow)
-	if err != nil {
-		panic(err)
-	}
+	_ = setWindowDisplay(w, WindowDisplayFlagShow)
 	startDrawHandler(windows.Handle(w.ID), refresh)
 
 	msg := new(wdws.Msg)
