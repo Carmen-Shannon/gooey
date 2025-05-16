@@ -49,6 +49,8 @@ type C_Window = C.Window
 type C_XEvent = C.XEvent
 type C_Drawable = C.Drawable
 type C_Display = C.Display
+type C_char = C.char
+type C_KeySym = C.KeySym
 
 var (
 	displayMap          = make(map[uintptr]uintptr)
@@ -71,6 +73,11 @@ var (
 	// Caret Ticker \\
 	CT   = common.NewCaretTicker()
 	HLTR = common.NewHighlighter()
+
+	// local event tracking \\
+	lastClickTimeMu sync.Mutex
+	lastClickTime   = make(map[uintptr]C.Time)
+	lastClickPos    = make(map[uintptr][2]int32)
 )
 
 const (
@@ -81,6 +88,7 @@ const (
 	C_BUTTONPRESS     = 4
 	C_BUTTONRELEASE   = 5
 	C_MOTIONNOTIFY    = 6
+	C_KEYPRESS        = 2
 
 	// Text Alignment
 	ALIGN_LEFT       = 0
@@ -98,6 +106,14 @@ const (
 	PointerMotionMask   = 1 << 6
 	KeyPressMask        = 1 << 0
 	KeyReleaseMask      = 1 << 1
+
+	// Special Keys
+	XK_BACKSPACE = 0xff08
+	XK_DELETE    = 0xffff
+
+	// Event Listening Logic
+	doubleClickThresholdMs = 400
+	doubleClickMaxDist     = 4
 )
 
 func WindowProc(hwnd uintptr, display *C.Display, event *C.XEvent) bool {
@@ -112,12 +128,47 @@ func WindowProc(hwnd uintptr, display *C.Display, event *C.XEvent) bool {
 		XCloseDisplay(display)
 		UnregisterDisplay(hwnd)
 		return false
+	case C_KEYPRESS:
+		if HLTR.TextInputID != 0 {
+			keyEvent := (*C.XKeyEvent)(unsafe.Pointer(event))
+			ctrlDown := (keyEvent.state & C.ControlMask) != 0
+			var keysym C.KeySym
+			C.XLookupString(keyEvent, nil, 0, &keysym, nil)
+			switch keysym {
+			case XK_BACKSPACE:
+				handleTextInputBackspace(HLTR.TextInputID)
+			case XK_DELETE:
+				handleTextInputDelete(HLTR.TextInputID)
+			case 0x0063, 0x0043: // 'c' or 'C'
+				if ctrlDown {
+					handleTextInputCopy(HLTR.TextInputID)
+					return true
+				}
+			case 0x0076, 0x0056: // 'v' or 'V'
+				if ctrlDown {
+					handleTextInputPaste(HLTR.TextInputID)
+					return true
+				}
+			case 0x0078, 0x0058: // 'x' or 'X'
+				if ctrlDown {
+					handleTextInputCopy(HLTR.TextInputID)
+					handleTextInputBackspace(HLTR.TextInputID)
+					return true
+				}
+			default:
+				handleTextInputKeyPress(HLTR.TextInputID, hwnd, event, display)
+			}
+		}
+		return true
 	case C_BUTTONPRESS:
 		x, y := GetMouseState(hwnd)
 		btnId, btnFound := FindButtonAt(x, y)
 		handleButtonCallbacks(btnId, btnFound, true)
 		tiId, tiFound := FindTextInputAt(x, y)
-		handleTextInputClickCallbacks(tiId, tiFound, hwnd, x)
+
+		ev := (*C.XButtonEvent)(unsafe.Pointer(event))
+		dblClk := isDoubleClick(hwnd, ev, x, y)
+		handleTextInputClickCallbacks(tiId, tiFound, hwnd, x, dblClk)
 		return true
 	case C_BUTTONRELEASE:
 		x, y := GetMouseState(hwnd)
@@ -129,6 +180,7 @@ func WindowProc(hwnd uintptr, display *C.Display, event *C.XEvent) bool {
 			handleTextInputCaretCallbacks(tiId)
 		}
 		HLTR.Active = false
+		HLTR.SuppressSelection = false
 		return true
 	case C_MOTIONNOTIFY:
 		x, y := GetMouseState(hwnd)
@@ -142,6 +194,31 @@ func WindowProc(hwnd uintptr, display *C.Display, event *C.XEvent) bool {
 	default:
 	}
 	return true
+}
+
+func isDoubleClick(hwnd uintptr, event *C.XButtonEvent, x, y int32) bool {
+	clkTime := event.time
+
+	lastClickTimeMu.Lock()
+	prevTime := lastClickTime[hwnd]
+	prevPos := lastClickPos[hwnd]
+	lastClickTime[hwnd] = clkTime
+	lastClickPos[hwnd] = [2]int32{x, y}
+	lastClickTimeMu.Unlock()
+
+	if prevTime != 0 && int(clkTime-prevTime) < doubleClickThresholdMs &&
+		abs32(int32(x)-int32(prevPos[0])) < doubleClickMaxDist &&
+		abs32(int32(y)-int32(prevPos[1])) < doubleClickMaxDist {
+		return true
+	}
+	return false
+}
+
+func abs32(a int32) int32 {
+	if a < 0 {
+		return -a
+	}
+	return a
 }
 
 // handlePaint for Linux: calls the registered draw callback
@@ -188,6 +265,83 @@ func HandlePaint(hwnd uintptr, display *C.Display) {
 
 	// Flush to ensure drawing is visible
 	C.XFlush(display)
+}
+
+func handleTextInputKeyPress(id uintptr, hwnd uintptr, event *C.XEvent, display *C.Display) {
+	keyEvent := (*C.XKeyEvent)(unsafe.Pointer(event))
+	var buf [8]C.char
+	var keysym C.KeySym
+	n := C.XLookupString(keyEvent, &buf[0], 8, &keysym, nil)
+	if n <= 0 {
+		return
+	}
+	input := string(C.GoBytes(unsafe.Pointer(&buf[0]), n))
+	runes := []rune(input)
+	if len(runes) == 0 {
+		return
+	}
+	ch := runes[0]
+	if ch < 32 || ch == 127 {
+		return
+	}
+	handleTextInputChar(id, ch)
+}
+
+func handleTextInputChar(id uintptr, ch rune) {
+	if ch < 32 || ch == 127 {
+		return
+	}
+	state := GetTextInputState(id)
+	if state == nil {
+		return
+	}
+	runes := []rune(state.Value)
+	caret := HLTR.SelectionEnd
+	if caret < 0 {
+		caret = 0
+	}
+	if caret > int32(len(runes)) {
+		caret = int32(len(runes))
+	}
+	start, end := HLTR.SelectionStart, HLTR.SelectionEnd
+	if start > end {
+		start, end = end, start
+	}
+	if start < 0 {
+		start = 0
+	}
+	if end > int32(len(runes)) {
+		end = int32(len(runes))
+	}
+
+	var newVal string
+	var newCaret int32
+	if start != end {
+		newVal = string(runes[:start]) + string(ch) + string(runes[end:])
+		newCaret = start + int32(len([]rune(string(ch))))
+	} else {
+		newVal = string(runes[:caret]) + string(ch) + string(runes[caret:])
+		newCaret = caret + int32(len([]rune(string(ch))))
+	}
+
+	if state.MaxLength > 0 && int32(len([]rune(newVal))) > state.MaxLength {
+		return
+	}
+	UpdateTextInputState(id,
+		common.UpdateTIStateValue(newVal),
+		common.UpdateTISelectionStart(newCaret),
+		common.UpdateTISelectionEnd(newCaret),
+		common.UpdateTICaretPos(newCaret),
+	)
+	HLTR.SelectionStart = newCaret
+	HLTR.SelectionEnd = newCaret
+	if cb, ok := state.CbMap["value"]; ok {
+		cb(newVal)
+	}
+	if cb, ok := state.CbMap["caretPos"]; ok {
+		cb(newCaret)
+	}
+	handleTextInputSelectionCallbacks(id, newCaret, newCaret)
 }
 
 // LoadArrowCursor returns the standard pointer cursor.
