@@ -5,12 +5,13 @@ package window
 
 import (
 	"fmt"
-	"github.com/Carmen-Shannon/gooey/common"
-	"github.com/Carmen-Shannon/gooey/component"
-	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/Carmen-Shannon/gooey/common"
+	"github.com/Carmen-Shannon/gooey/component"
+	wdws "github.com/Carmen-Shannon/gooey/internal/windows"
 
 	"golang.org/x/sys/windows"
 )
@@ -185,7 +186,10 @@ func drawComponents(w *wdw, ctx *common.DrawCtx) {
 //   - w: A pointer to the window to run.
 //   - refresh: The refresh rate in frames per second (FPS) for the window's drawing.
 func run(w *wdw, refresh int) {
-	setWindowDisplay(w, WindowDisplayFlagShow)
+	err := setWindowDisplay(w, WindowDisplayFlagShow)
+	if err != nil {
+		panic(err)
+	}
 	startDrawHandler(windows.Handle(w.ID), refresh)
 
 	msg := new(wdws.Msg)

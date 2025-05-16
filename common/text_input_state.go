@@ -32,6 +32,7 @@ type UpdateTextInputState func(state *TextInputState)
 func UpdateTIStateValue(value string) UpdateTextInputState {
 	return func(state *TextInputState) {
 		state.Value = value
+		state.CbMap["value"](value)
 	}
 }
 
@@ -45,6 +46,7 @@ func UpdateTIStateValue(value string) UpdateTextInputState {
 func UpdateTIMaxLength(maxLength int32) UpdateTextInputState {
 	return func(state *TextInputState) {
 		state.MaxLength = maxLength
+		state.CbMap["maxLength"](maxLength)
 	}
 }
 
@@ -71,6 +73,7 @@ func UpdateTIFont(font Font) UpdateTextInputState {
 func UpdateTISelectionStart(selectionStart int32) UpdateTextInputState {
 	return func(state *TextInputState) {
 		state.SelectionStart = selectionStart
+		state.CbMap["selectionStart"](selectionStart)
 	}
 }
 
@@ -84,6 +87,7 @@ func UpdateTISelectionStart(selectionStart int32) UpdateTextInputState {
 func UpdateTISelectionEnd(selectionEnd int32) UpdateTextInputState {
 	return func(state *TextInputState) {
 		state.SelectionEnd = selectionEnd
+		state.CbMap["selectionEnd"](selectionEnd)
 	}
 }
 
@@ -97,6 +101,7 @@ func UpdateTISelectionEnd(selectionEnd int32) UpdateTextInputState {
 func UpdateTICaretPos(caretPos int32) UpdateTextInputState {
 	return func(state *TextInputState) {
 		state.CaretPos = caretPos
+		state.CbMap["caretPos"](caretPos)
 	}
 }
 
@@ -110,6 +115,7 @@ func UpdateTICaretPos(caretPos int32) UpdateTextInputState {
 func UpdateTIFocused(focused bool) UpdateTextInputState {
 	return func(state *TextInputState) {
 		state.Focused = focused
+		state.CbMap["focused"](focused)
 	}
 }
 
@@ -129,6 +135,7 @@ func UpdateTIBounds(x, y, width, height int32) UpdateTextInputState {
 		state.Bounds.Y = y
 		state.Bounds.Width = width
 		state.Bounds.Height = height
+		state.CbMap["bounds"](state.Bounds)
 	}
 }
 

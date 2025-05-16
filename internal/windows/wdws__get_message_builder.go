@@ -32,9 +32,9 @@ func newGetMessageOpts() *getMessageOpts {
 // Returns:
 //   - GetMessageOpt: A function that takes a pointer to getMessageOpts and sets its WindowHandle field.
 func WindowHandleOpt(windowHandle windows.Handle) GetMessageOpt {
-    return func(opts *getMessageOpts) {
-        opts.WindowHandle = windowHandle
-    }
+	return func(opts *getMessageOpts) {
+		opts.WindowHandle = windowHandle
+	}
 }
 
 // MessageOpt sets the message pointer for the get message options.
@@ -45,9 +45,9 @@ func WindowHandleOpt(windowHandle windows.Handle) GetMessageOpt {
 // Returns:
 //   - GetMessageOpt: A function that takes a pointer to getMessageOpts and sets its Message field.
 func MessageOpt(message *Msg) GetMessageOpt {
-    return func(opts *getMessageOpts) {
-        opts.Message = message
-    }
+	return func(opts *getMessageOpts) {
+		opts.Message = message
+	}
 }
 
 // MessageFilterMinOpt sets the minimum message filter value for the get message options.
@@ -58,9 +58,9 @@ func MessageOpt(message *Msg) GetMessageOpt {
 // Returns:
 //   - GetMessageOpt: A function that takes a pointer to getMessageOpts and sets its MessageFilterMin field.
 func MessageFilterMinOpt(messageFilterMin uint32) GetMessageOpt {
-    return func(opts *getMessageOpts) {
-        opts.MessageFilterMin = messageFilterMin
-    }
+	return func(opts *getMessageOpts) {
+		opts.MessageFilterMin = messageFilterMin
+	}
 }
 
 // MessageFilterMaxOpt sets the maximum message filter value for the get message options.
@@ -71,9 +71,9 @@ func MessageFilterMinOpt(messageFilterMin uint32) GetMessageOpt {
 // Returns:
 //   - GetMessageOpt: A function that takes a pointer to getMessageOpts and sets its MessageFilterMax field.
 func MessageFilterMaxOpt(messageFilterMax uint32) GetMessageOpt {
-    return func(opts *getMessageOpts) {
-        opts.MessageFilterMax = messageFilterMax
-    }
+	return func(opts *getMessageOpts) {
+		opts.MessageFilterMax = messageFilterMax
+	}
 }
 
 // DoneChanOpt sets the done channel for the get message options.
@@ -84,7 +84,7 @@ func MessageFilterMaxOpt(messageFilterMax uint32) GetMessageOpt {
 // Returns:
 //   - GetMessageOpt: A function that takes a pointer to getMessageOpts and sets its DoneChan field.
 func DoneChanOpt(doneChan chan struct{}) GetMessageOpt {
-    return func(opts *getMessageOpts) {
-        opts.DoneChan = doneChan
-    }
+	return func(opts *getMessageOpts) {
+		opts.DoneChan = doneChan
+	}
 }

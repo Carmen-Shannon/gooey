@@ -205,6 +205,8 @@ func drawComponent(c any, ctx *common.DrawCtx) {
 		if comp.Visible() {
 			drawTextInput(ctx, comp)
 		}
+	case Selector:
+		drawSelector(ctx, comp)
 	default:
 		fmt.Println("unsupported component type")
 	}

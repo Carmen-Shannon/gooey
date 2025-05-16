@@ -16,10 +16,10 @@ type label struct {
 // It accepts a variadic list of CreateLabelOption functions to customize the label's properties.
 //
 // Parameters:
-//  - options: A variadic list of CreateLabelOption functions to customize the label's properties.
+//   - options: A variadic list of CreateLabelOption functions to customize the label's properties.
 //
 // Returns:
-//  - Label: A pointer to the newly created label component.
+//   - Label: A pointer to the newly created label component.
 func NewLabel(options ...CreateLabelOption) Label {
 	opts := newCreateLabelOptions()
 	for _, opt := range options {

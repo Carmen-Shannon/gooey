@@ -11,9 +11,9 @@ import (
 func drawButton(ctx *common.DrawCtx, b Button) {
 	x, y := b.Position()
 	w, h := b.Size()
-    if w <= 0 || h <= 0 {
-        return
-    }
+	if w <= 0 || h <= 0 {
+		return
+	}
 	radius := (b.Roundness() * min(w, h)) / 200
 
 	var color *common.Color

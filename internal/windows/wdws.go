@@ -5,9 +5,10 @@ package wdws
 
 import (
 	"fmt"
-	"github.com/Carmen-Shannon/gooey/common"
 	"sync"
 	"unsafe"
+
+	"github.com/Carmen-Shannon/gooey/common"
 
 	"golang.org/x/sys/windows"
 )
@@ -26,10 +27,14 @@ var (
 	customCursorDrawMu  sync.Mutex
 	textInputStateMap   = make(map[uintptr]*common.TextInputState)
 	textInputStateMapMu sync.Mutex
+	selectorStateMap    = make(map[uintptr]*common.SelectorState)
+	selectorStateMapMu  sync.Mutex
 	buttonBoundsMap     = make(map[uintptr][4]int32)
 	buttonBoundsMapMu   sync.Mutex
 	buttonCbMap         = make(map[uintptr]map[string]func(any))
 	buttonCbMapMu       sync.Mutex
+
+	transparentBrush windows.Handle
 
 	// DLLs for Windows API functions \\
 	user32   = windows.NewLazySystemDLL("user32.dll")
@@ -37,35 +42,46 @@ var (
 	kernal32 = windows.NewLazySystemDLL("kernel32.dll")
 
 	// User32 functions \\
-	procRegisterClassExW = user32.NewProc("RegisterClassExW")
-	procCreateWindowExW  = user32.NewProc("CreateWindowExW")
-	procShowWindow       = user32.NewProc("ShowWindow")
-	procPostQuitMessage  = user32.NewProc("PostQuitMessage")
-	procDefWindowProcW   = user32.NewProc("DefWindowProcW")
-	procGetMessageW      = user32.NewProc("GetMessageW")
-	procTranslateMessage = user32.NewProc("TranslateMessage")
-	procDispatchMessageW = user32.NewProc("DispatchMessageW")
-	procDestroyWindow    = user32.NewProc("DestroyWindow")
-	procSetCursor        = user32.NewProc("SetCursor")
-	procLoadCursorW      = user32.NewProc("LoadCursorW")
-	procBeginPaint       = user32.NewProc("BeginPaint")
-	procEndPaint         = user32.NewProc("EndPaint")
-	procInvalidateRect   = user32.NewProc("InvalidateRect")
-	procFillRect         = user32.NewProc("FillRect")
-	procDrawTextW        = user32.NewProc("DrawTextW")
-	procGetCursorPos     = user32.NewProc("GetCursorPos")
-	ProcScreenToClient   = user32.NewProc("ScreenToClient")
-	procGetKeyState      = user32.NewProc("GetKeyState")
-	procDrawEdge         = user32.NewProc("DrawEdge")
-	procSetWindowPos     = user32.NewProc("SetWindowPos")
-	procSendMessageW     = user32.NewProc("SendMessageW")
-	procGetDC            = user32.NewProc("GetDC")
-	procReleaseDC        = user32.NewProc("ReleaseDC")
-	procOpenClipboard    = user32.NewProc("OpenClipboard")
-	procCloseClipboard   = user32.NewProc("CloseClipboard")
-	procEmptyClipboard   = user32.NewProc("EmptyClipboard")
-	procSetClipboardData = user32.NewProc("SetClipboardData")
-	procGetClipboardData = user32.NewProc("GetClipboardData")
+	procRegisterClassExW    = user32.NewProc("RegisterClassExW")
+	procCreateWindowExW     = user32.NewProc("CreateWindowExW")
+	procShowWindow          = user32.NewProc("ShowWindow")
+	procPostQuitMessage     = user32.NewProc("PostQuitMessage")
+	procDefWindowProcW      = user32.NewProc("DefWindowProcW")
+	procGetMessageW         = user32.NewProc("GetMessageW")
+	procTranslateMessage    = user32.NewProc("TranslateMessage")
+	procDispatchMessageW    = user32.NewProc("DispatchMessageW")
+	procDestroyWindow       = user32.NewProc("DestroyWindow")
+	procSetCursor           = user32.NewProc("SetCursor")
+	procLoadCursorW         = user32.NewProc("LoadCursorW")
+	procBeginPaint          = user32.NewProc("BeginPaint")
+	procEndPaint            = user32.NewProc("EndPaint")
+	procInvalidateRect      = user32.NewProc("InvalidateRect")
+	procFillRect            = user32.NewProc("FillRect")
+	procDrawTextW           = user32.NewProc("DrawTextW")
+	procGetCursorPos        = user32.NewProc("GetCursorPos")
+	procGetKeyState         = user32.NewProc("GetKeyState")
+	procDrawEdge            = user32.NewProc("DrawEdge")
+	procSetWindowPos        = user32.NewProc("SetWindowPos")
+	procSendMessageW        = user32.NewProc("SendMessageW")
+	procGetDC               = user32.NewProc("GetDC")
+	procReleaseDC           = user32.NewProc("ReleaseDC")
+	procOpenClipboard       = user32.NewProc("OpenClipboard")
+	procCloseClipboard      = user32.NewProc("CloseClipboard")
+	procEmptyClipboard      = user32.NewProc("EmptyClipboard")
+	procSetClipboardData    = user32.NewProc("SetClipboardData")
+	procGetClipboardData    = user32.NewProc("GetClipboardData")
+	procGetSystemMetrics    = user32.NewProc("GetSystemMetrics")
+	procUpdateLayeredWindow = user32.NewProc("UpdateLayeredWindow")
+	procGetWindowLong       = user32.NewProc("GetWindowLongW")
+	procSetWindowLong       = user32.NewProc("SetWindowLongW")
+	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
+	procSetCapture          = user32.NewProc("SetCapture")
+	procReleaseCapture      = user32.NewProc("ReleaseCapture")
+	procPostMessageW        = user32.NewProc("PostMessageW")
+	procGetWindowLongPtr    = user32.NewProc("GetWindowLongPtrW")
+	procSetWindowLongPtr    = user32.NewProc("SetWindowLongPtrW")
+	procGetAncestor         = user32.NewProc("GetAncestor")
+	procScreenToClient      = user32.NewProc("ScreenToClient")
 
 	// GDI32 functions \\
 	procCreateSolidBrush       = gdi32.NewProc("CreateSolidBrush")
@@ -82,11 +98,13 @@ var (
 	procGetTextExtentPoint32W  = gdi32.NewProc("GetTextExtentPoint32W")
 	procRoundRect              = gdi32.NewProc("RoundRect")
 	procCreatePen              = gdi32.NewProc("CreatePen")
+	procCreateDIBSection       = gdi32.NewProc("CreateDIBSection")
 
 	// Kernal32 Functions \\
-	procGlobalAlloc  = kernal32.NewProc("GlobalAlloc")
-	procGlobalLock   = kernal32.NewProc("GlobalLock")
-	procGlobalUnlock = kernal32.NewProc("GlobalUnlock")
+	procGlobalAlloc     = kernal32.NewProc("GlobalAlloc")
+	procGlobalLock      = kernal32.NewProc("GlobalLock")
+	procGlobalUnlock    = kernal32.NewProc("GlobalUnlock")
+	procGetModuleHandle = kernal32.NewProc("GetModuleHandleW")
 
 	// Caret Ticker \\
 	CT   = common.NewCaretTicker()
@@ -121,6 +139,10 @@ const (
 	WS_CLIPCHILDREN     = 0x02000000
 	WS_EX_CLIENTEDGE    = 0x00000200
 	WS_BORDER           = 0x00800000
+	WS_EX_LAYERED       = 0x00080000
+	WS_EX_TRANSPARENT   = 0x00000020
+	WS_EX_TOPMOST       = 0x00000008
+	WS_POPUP            = 0x80000000
 
 	// Edit Control Styles
 	ES_LEFT        = 0x0000
@@ -150,6 +172,9 @@ const (
 	WM_COMMAND       = 0x0111
 	WM_CHAR          = 0x0102
 	WM_KEYDOWN       = 0x0100
+	WM_MOUSEACTIVATE = 0x0021
+	WM_NCHITTEST     = 0x0084
+	WM_NCCREATE      = 0x0081
 
 	// Notification Codes
 	EN_CHANGE = 0x0300
@@ -157,6 +182,7 @@ const (
 	// Cursor Styles
 	IDC_ARROW = 32512
 	IDC_BEAM  = 32513
+	IDC_CROSS = 32515
 
 	// System Color Indexes
 	COLOR_WINDOW        = 5
@@ -212,6 +238,9 @@ const (
 	VK_DELETE  = 0x2E
 	VK_CONTROL = 0x11
 
+	// Mouse Keys
+	MK_LBUTTON = 0x0001
+
 	// Border Styles
 	BD_EDGE_RAISED       = 0x0004
 	BD_EDGE_SUNKEN       = 0x0008
@@ -226,7 +255,44 @@ const (
 
 	// Global Memory Flags
 	GMEM_MOVEABLE = 0x0002
+
+	// Post Script (???)
+	PS_SOLID = 0
+
+	// Redraw Flags
+	RDW_INVALIDATE      = 0x0001
+	RDW_INTERNALPAINT   = 0x0002
+	RDW_ERASE           = 0x0004
+	RDW_VALIDATE        = 0x0008
+	RDW_NOINTERNALPAINT = 0x0010
+	RDW_NOERASE         = 0x0020
+	RDW_NOCHILDREN      = 0x0040
+	RDW_ALLCHILDREN     = 0x0080
+	RDW_UPDATENOW       = 0x0100
+	RDW_ERASENOW        = 0x0200
+	RDW_FRAME           = 0x0400
+	RDW_NOFRAME         = 0x0800
+
+	// Get Window Flags
+	GW_OWNER      = 4
+	GWL_EXSTYLE   = -20
+	GWLP_USERDATA = -21
 )
+
+type CREATESTRUCT struct {
+	LpCreateParams uintptr
+	HInstance      uintptr
+	HMenu          uintptr
+	HwndParent     uintptr
+	Cy             int32
+	Cx             int32
+	Y              int32
+	X              int32
+	Style          int32
+	LpszName       uintptr
+	LpszClass      uintptr
+	DwExStyle      uint32
+}
 
 // WdsWndClass is the struct that defines the WNDCLASSEXW model used in the windows API.
 // It includes all fields equivalent to the API specifications.
@@ -373,10 +439,10 @@ func WindowProc(hwnd windows.Handle, msg uint32, wParam, lParam uintptr) uintptr
 		handlePaint(hwnd)
 		return 0
 	case WM_CLOSE:
-		procDestroyWindow.Call(uintptr(hwnd))
+		_ = DestroyWindow(hwnd)
 		return 0
 	case WM_DESTROY:
-		procPostQuitMessage.Call(0)
+		_, _, _ = procPostQuitMessage.Call(0)
 		return 0
 	}
 	ret, _, _ := procDefWindowProcW.Call(
@@ -467,6 +533,17 @@ func GetWindowColor(hwnd uintptr) *common.Color {
 	return &color
 }
 
+// WdwColorMap returns the map of window handles to their background colors.
+// It is used to retrieve the current state of the color map.
+//
+// Returns:
+//   - map[uintptr]common.Color: A map of window handles to their background colors
+func WdwColorMap() map[uintptr]common.Color {
+	wdwColorMapMu.Lock()
+	defer wdwColorMapMu.Unlock()
+	return wdwColorMap
+}
+
 // getFontCacheKey generates a unique key for the font cache based on the font height and name.
 //
 // Parameters:
@@ -513,7 +590,7 @@ func CleanupFontCache() {
 	defer fontCacheMu.Unlock()
 	for _, hFont := range fontCache {
 		if hFont != 0 {
-			procDeleteObject.Call(uintptr(hFont))
+			DeleteObject(hFont)
 		}
 	}
 	fontCache = make(map[string]windows.Handle)
@@ -687,4 +764,70 @@ func FindTextInputAt(x, y int32) (componentID uintptr, found bool) {
 		}
 	}
 	return 0, false
+}
+
+// RegisterSelectorState registers the state of a selector control.
+// It is used to track the state of the selector control, including its bounds and other properties.
+// This is useful for handling selector events and managing the state of the selector control.
+//
+// Parameters:
+//   - componentID: The ID of the component associated with the selector control
+//   - state: A pointer to a common.SelectorState struct representing the state of the selector control
+func RegisterSelectorState(componentID uintptr, state *common.SelectorState) {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	selectorStateMap[componentID] = state
+}
+
+// GetSelectorState retrieves the state of a selector control.
+// It is used to get the current state of the selector control, including its bounds and other properties.
+// This is useful for handling selector events and managing the state of the selector control.
+//
+// Parameters:
+//   - componentID: The ID of the component associated with the selector control
+//   - updates: A variadic number of update functions to modify the state
+func UpdateSelectorState(componentID uintptr, updates ...common.UpdateSelectorState) {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	state, ok := selectorStateMap[componentID]
+	if !ok {
+		return
+	}
+	for _, update := range updates {
+		update(state)
+	}
+}
+
+// GetSelectorState retrieves the state of a selector control.
+// It is used to get the current state of the selector control, including its bounds and other properties.
+//
+// Parameters:
+//   - componentID: The ID of the component associated with the selector control
+//
+// Returns:
+//   - *common.SelectorState: A pointer to a common.SelectorState struct representing the state of the selector control
+func GetSelectorState(componentID uintptr) *common.SelectorState {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	return selectorStateMap[componentID]
+}
+
+// GetAllSelectorStates retrieves all selector states.
+// It is used to get the current states of all selector controls, including their bounds and other properties.
+//
+// Returns:
+//   - []*common.SelectorState: A slice of pointers to common.SelectorState structs representing the states of all selector controls
+func GetAllSelectorStates() []*common.SelectorState {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	states := make([]*common.SelectorState, 0, len(selectorStateMap))
+	for _, state := range selectorStateMap {
+		states = append(states, state)
+	}
+	return states
+}
+
+func PostMessage(hwnd windows.Handle, msg uint32, wParam, lParam uintptr) bool {
+	ret, _, _ := procPostMessageW.Call(uintptr(hwnd), uintptr(msg), wParam, lParam)
+	return ret != 0
 }

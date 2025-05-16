@@ -30,72 +30,72 @@ func newCreateComponentOptions() *createComponentOptions {
 // It takes a uintptr as the ID and returns a CreateComponentOption function.
 //
 // Parameters:
-//  - id: The unique identifier to set for the component.
+//   - id: The unique identifier to set for the component.
 //
 // Returns:
-//  - CreateComponentOption: A function that takes a pointer to createComponentOptions
+//   - CreateComponentOption: A function that takes a pointer to createComponentOptions
 func ComponentIDOpt(id uintptr) CreateComponentOption {
-    return func(opts *createComponentOptions) {
-        opts.ID = id
-    }
+	return func(opts *createComponentOptions) {
+		opts.ID = id
+	}
 }
 
 // ComponentSizeOpt sets the size of the component.
 // It takes width and height as int32 values and returns a CreateComponentOption function.
 //
 // Parameters:
-//  - width: The width of the component.
-//  - height: The height of the component.
+//   - width: The width of the component.
+//   - height: The height of the component.
 //
 // Returns:
-//  - CreateComponentOption: A function that takes a pointer to createComponentOptions
+//   - CreateComponentOption: A function that takes a pointer to createComponentOptions
 func ComponentSizeOpt(width, height int32) CreateComponentOption {
-    return func(opts *createComponentOptions) {
-        opts.Size.Width = width
-        opts.Size.Height = height
-    }
+	return func(opts *createComponentOptions) {
+		opts.Size.Width = width
+		opts.Size.Height = height
+	}
 }
 
 // ComponentPositionOpt sets the position of the component.
 // It takes x and y as int32 values and returns a CreateComponentOption function.
 //
 // Parameters:
-//  - x: The x-coordinate of the component.
-//  - y: The y-coordinate of the component.
+//   - x: The x-coordinate of the component.
+//   - y: The y-coordinate of the component.
 //
 // Returns:
-//  - CreateComponentOption: A function that takes a pointer to createComponentOptions
+//   - CreateComponentOption: A function that takes a pointer to createComponentOptions
 func ComponentPositionOpt(x, y int32) CreateComponentOption {
-    return func(opts *createComponentOptions) {
-        opts.Position.X = x
-        opts.Position.Y = y
-    }
+	return func(opts *createComponentOptions) {
+		opts.Position.X = x
+		opts.Position.Y = y
+	}
 }
 
 // ComponentVisibleOpt sets the visibility of the component.
 // It takes a bool indicating visibility and returns a CreateComponentOption function.
 //
 // Parameters:
-//  - visible: true to make the component visible, false to hide it.
+//   - visible: true to make the component visible, false to hide it.
 //
 // Returns:
-//  - CreateComponentOption: A function that takes a pointer to createComponentOptions
+//   - CreateComponentOption: A function that takes a pointer to createComponentOptions
 func ComponentVisibleOpt(visible bool) CreateComponentOption {
-    return func(opts *createComponentOptions) {
-        opts.Visible = visible
-    }
+	return func(opts *createComponentOptions) {
+		opts.Visible = visible
+	}
 }
 
 // ComponentEnabledOpt sets whether the component is enabled.
 // It takes a bool indicating enabled state and returns a CreateComponentOption function.
 //
 // Parameters:
-//  - enabled: true to enable the component, false to disable it.
+//   - enabled: true to enable the component, false to disable it.
 //
 // Returns:
-//  - CreateComponentOption: A function that takes a pointer to createComponentOptions
+//   - CreateComponentOption: A function that takes a pointer to createComponentOptions
 func ComponentEnabledOpt(enabled bool) CreateComponentOption {
-    return func(opts *createComponentOptions) {
-        opts.Enabled = enabled
-    }
+	return func(opts *createComponentOptions) {
+		opts.Enabled = enabled
+	}
 }

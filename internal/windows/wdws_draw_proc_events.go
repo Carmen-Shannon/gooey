@@ -4,8 +4,9 @@
 package wdws
 
 import (
-	"github.com/Carmen-Shannon/gooey/common"
 	"unsafe"
+
+	"github.com/Carmen-Shannon/gooey/common"
 
 	"golang.org/x/sys/windows"
 )
@@ -133,5 +134,5 @@ func DrawEdge(hdc uintptr, rect *[4]int32, edge, flags uint32) bool {
 
 func FillRect(hdc uintptr, rect [4]int32, brush uintptr) {
 	r := rect
-	procFillRect.Call(hdc, uintptr(unsafe.Pointer(&r)), brush)
+	_, _, _ = procFillRect.Call(hdc, uintptr(unsafe.Pointer(&r)), brush)
 }

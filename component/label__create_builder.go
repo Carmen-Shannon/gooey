@@ -28,7 +28,7 @@ func newCreateLabelOptions() *createLabelOptions {
 // LabelTextOpt sets the text of the label.
 //
 // Parameters:
-//  - text: The text to set for the label.
+//   - text: The text to set for the label.
 func LabelTextOpt(text string) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.Text = text
@@ -38,7 +38,7 @@ func LabelTextOpt(text string) CreateLabelOption {
 // LabelFontOpt sets the font of the label.
 //
 // Parameters:
-//  - font: The font to set for the label.
+//   - font: The font to set for the label.
 func LabelFontOpt(font string) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.Font = font
@@ -48,7 +48,7 @@ func LabelFontOpt(font string) CreateLabelOption {
 // LabelColorOpt sets the color of the label.
 //
 // Parameters:
-//  - color: The color to set for the label.
+//   - color: The color to set for the label.
 func LabelColorOpt(color *common.Color) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.Color = color
@@ -58,7 +58,7 @@ func LabelColorOpt(color *common.Color) CreateLabelOption {
 // LabelTextSizeOpt sets the text size of the label.
 //
 // Parameters:
-//  - size: The text size to set for the label.
+//   - size: The text size to set for the label.
 func LabelTextSizeOpt(size int32) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.TextSize = size
@@ -68,7 +68,7 @@ func LabelTextSizeOpt(size int32) CreateLabelOption {
 // LabelTextAlignmentOpt sets the text alignment of the label.
 //
 // Parameters:
-//  - alignment: The text alignment to set for the label.
+//   - alignment: The text alignment to set for the label.
 func LabelTextAlignmentOpt(alignment TextAlignment) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.TextAlignment = alignment
@@ -78,7 +78,7 @@ func LabelTextAlignmentOpt(alignment TextAlignment) CreateLabelOption {
 // LabelWordWrapOpt sets the word wrap option of the label.
 //
 // Parameters:
-//  - wrap: The word wrap option to set for the label.
+//   - wrap: The word wrap option to set for the label.
 func LabelWordWrapOpt(wrap bool) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.WordWrap = wrap
@@ -88,7 +88,7 @@ func LabelWordWrapOpt(wrap bool) CreateLabelOption {
 // LabelComponentOptionsOpt sets the component options of the label.
 //
 // Parameters:
-//  - options: The component options to set for the label.
+//   - options: The component options to set for the label.
 func LabelComponentOptionsOpt(options ...CreateComponentOption) CreateLabelOption {
 	return func(opts *createLabelOptions) {
 		opts.ComponentOptions = options

@@ -111,41 +111,20 @@ func handleTextInputClickCallbacks(id uintptr, found bool, windowHandle windows.
 		HLTR.SelectionStart = selStart
 		HLTR.SelectionEnd = selEnd
 		HLTR.Active = true
-		if cb, ok := state.CbMap["focused"]; ok {
-			cb(true)
-		}
 		if !CT.Active {
 			CT.Start(uintptr(windowHandle), id)
-		}
-		if cb, ok := state.CbMap["caretPos"]; ok {
-			cb(selEnd)
-		}
-		if cb, ok := state.CbMap["selectionStart"]; ok {
-			cb(selStart)
-		}
-		if cb, ok := state.CbMap["selectionEnd"]; ok {
-			cb(selEnd)
 		}
 	} else {
 		HLTR.TextInputID = 0
 		HLTR.Active = false
 		HLTR.SelectionStart = 0
 		HLTR.SelectionEnd = 0
-		for id, state := range textInputStateMap {
+		for id := range textInputStateMap {
 			UpdateTextInputState(id,
 				common.UpdateTIFocused(false),
 				common.UpdateTISelectionStart(0),
 				common.UpdateTISelectionEnd(0),
 			)
-			if cb, ok := state.CbMap["focused"]; ok {
-				cb(false)
-			}
-			if cb, ok := state.CbMap["selectionStart"]; ok {
-				cb(int32(0))
-			}
-			if cb, ok := state.CbMap["selectionEnd"]; ok {
-				cb(int32(0))
-			}
 		}
 	}
 }
@@ -207,15 +186,6 @@ func handleTextInputSelectionCallbacks(id uintptr, start, end int32) {
 		common.UpdateTISelectionStart(start),
 		common.UpdateTISelectionEnd(end),
 	)
-	state := GetTextInputState(id)
-	if state != nil {
-		if cb, ok := state.CbMap["selectionStart"]; ok {
-			cb(start)
-		}
-		if cb, ok := state.CbMap["selectionEnd"]; ok {
-			cb(end)
-		}
-	}
 }
 
 // handleTextInputCaretCallbacks handles the caret position callbacks for text input components.
@@ -224,13 +194,7 @@ func handleTextInputSelectionCallbacks(id uintptr, start, end int32) {
 // Parameters:
 //   - id: The ID of the text input component
 func handleTextInputCaretCallbacks(id uintptr) {
-	state := GetTextInputState(id)
-	if state != nil {
-		UpdateTextInputState(id, common.UpdateTICaretPos(HLTR.SelectionEnd))
-		if cb, ok := state.CbMap["caretPos"]; ok {
-			cb(HLTR.SelectionEnd)
-		}
-	}
+	UpdateTextInputState(id, common.UpdateTICaretPos(HLTR.SelectionEnd))
 }
 
 // handleTextInputChar handles the character input for text input components.
@@ -288,12 +252,6 @@ func handleTextInputChar(id uintptr, ch rune) {
 	)
 	HLTR.SelectionStart = newCaret
 	HLTR.SelectionEnd = newCaret
-	if cb, ok := state.CbMap["value"]; ok {
-		cb(newVal)
-	}
-	if cb, ok := state.CbMap["caretPos"]; ok {
-		cb(newCaret)
-	}
 	handleTextInputSelectionCallbacks(id, newCaret, newCaret)
 }
 
@@ -323,9 +281,6 @@ func handleTextInputBackspace(id uintptr) {
 			common.UpdateTISelectionEnd(start),
 			common.UpdateTICaretPos(start),
 		)
-		if cb, ok := state.CbMap["value"]; ok {
-			cb(newVal)
-		}
 		HLTR.SelectionStart = start
 		HLTR.SelectionEnd = start
 	} else if end > 0 {
@@ -336,15 +291,10 @@ func handleTextInputBackspace(id uintptr) {
 			common.UpdateTISelectionEnd(end-1),
 			common.UpdateTICaretPos(end-1),
 		)
-		if cb, ok := state.CbMap["value"]; ok {
-			cb(newVal)
-		}
 		HLTR.SelectionStart = end - 1
 		HLTR.SelectionEnd = end - 1
 	}
-	if cb, ok := state.CbMap["caretPos"]; ok {
-		cb(HLTR.SelectionEnd)
-	}
+	UpdateTextInputState(id, common.UpdateTICaretPos(HLTR.SelectionEnd))
 	handleTextInputSelectionCallbacks(id, HLTR.SelectionStart, HLTR.SelectionEnd)
 }
 
@@ -374,9 +324,6 @@ func handleTextInputDelete(id uintptr) {
 			common.UpdateTISelectionEnd(start),
 			common.UpdateTICaretPos(start),
 		)
-		if cb, ok := state.CbMap["value"]; ok {
-			cb(newVal)
-		}
 	} else if end < int32(len(runes)) {
 		newVal := string(runes[:end]) + string(runes[end+1:])
 		UpdateTextInputState(id,
@@ -385,13 +332,8 @@ func handleTextInputDelete(id uintptr) {
 			common.UpdateTISelectionEnd(end),
 			common.UpdateTICaretPos(end),
 		)
-		if cb, ok := state.CbMap["value"]; ok {
-			cb(newVal)
-		}
 	}
-	if cb, ok := state.CbMap["caretPos"]; ok {
-		cb(HLTR.SelectionEnd)
-	}
+	UpdateTextInputState(id, common.UpdateTICaretPos(HLTR.SelectionEnd))
 	handleTextInputSelectionCallbacks(id, HLTR.SelectionStart, HLTR.SelectionEnd)
 }
 
@@ -443,12 +385,6 @@ func handleTextInputPaste(id uintptr) {
 	)
 	HLTR.SelectionStart = newCaret
 	HLTR.SelectionEnd = newCaret
-	if cb, ok := state.CbMap["value"]; ok {
-		cb(newVal)
-	}
-	if cb, ok := state.CbMap["caretPos"]; ok {
-		cb(newCaret)
-	}
 	handleTextInputSelectionCallbacks(id, newCaret, newCaret)
 }
 

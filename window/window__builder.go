@@ -17,10 +17,10 @@ type NewWindowOption func(*newWindowOption)
 // TitleOpt sets the title of the window.
 //
 // Parameters:
-//  - title: The title to set for the window.
+//   - title: The title to set for the window.
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Title field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Title field.
 func TitleOpt(title string) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.Title = title
@@ -30,10 +30,10 @@ func TitleOpt(title string) NewWindowOption {
 // HeightOpt sets the height of the window.
 //
 // Parameters:
-//  - height: The height to set for the window.
+//   - height: The height to set for the window.
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Height field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Height field.
 func HeightOpt(height int32) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.Height = height
@@ -43,10 +43,10 @@ func HeightOpt(height int32) NewWindowOption {
 // WidthOpt sets the width of the window.
 //
 // Parameters:
-//  - width: The width to set for the window.
+//   - width: The width to set for the window.
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Width field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Width field.
 func WidthOpt(width int32) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.Width = width
@@ -56,10 +56,10 @@ func WidthOpt(width int32) NewWindowOption {
 // StyleOpt sets the style of the window.
 //
 // Parameters:
-//  - style: The style to set for the window.
+//   - style: The style to set for the window.
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Style field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the Style field.
 func StyleOpt(style uint32) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.Style = style
@@ -69,10 +69,10 @@ func StyleOpt(style uint32) NewWindowOption {
 // ClassNameOpt sets the class name of the window.
 //
 // Parameters:
-//  - className: The class name to set
+//   - className: The class name to set
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the ClassName field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the ClassName field.
 func ClassNameOpt(className string) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.ClassName = className
@@ -82,10 +82,10 @@ func ClassNameOpt(className string) NewWindowOption {
 // CloseChanOpt sets the close channel of the window.
 //
 // Parameters:
-//  - closeChan: The close channel to set for the window.
+//   - closeChan: The close channel to set for the window.
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the CloseChan field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the CloseChan field.
 func CloseChanOpt(closeChan chan struct{}) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.CloseChan = closeChan
@@ -95,10 +95,10 @@ func CloseChanOpt(closeChan chan struct{}) NewWindowOption {
 // BackgroundColorOpt sets the background color of the window.
 //
 // Parameters:
-//  - color: The background color to set for the window.
+//   - color: The background color to set for the window.
 //
 // Returns:
-//  - NewWindowOption: A function that takes a pointer to newWindowOption and sets the BackgroundColor field.
+//   - NewWindowOption: A function that takes a pointer to newWindowOption and sets the BackgroundColor field.
 func BackgroundColorOpt(color *common.Color) NewWindowOption {
 	return func(opts *newWindowOption) {
 		opts.BackgroundColor = color

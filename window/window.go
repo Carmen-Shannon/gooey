@@ -18,8 +18,6 @@ type wdw struct {
 	Title           string
 	BackgroundColor common.Color
 	Components      []component.Component
-
-	redraw chan struct{}
 }
 
 type Window interface {

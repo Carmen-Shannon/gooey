@@ -22,7 +22,7 @@ type textInput struct {
 // It accepts a variadic list of CreateTextInputOption functions to customize the text input's properties.
 //
 // Parameters:
-//  - options: A variadic list of CreateTextInputOption functions to customize the text input's properties.
+//   - options: A variadic list of CreateTextInputOption functions to customize the text input's properties.
 func NewTextInput(options ...CreateTextInputOption) TextInput {
 	opts := newCreateTextInputOptions()
 	for _, opt := range options {
@@ -111,6 +111,24 @@ func NewTextInput(options ...CreateTextInputOption) TextInput {
 	cbMap["selectionEnd"] = func(selectionEnd any) {
 		if selectionEndInt, ok := selectionEnd.(int32); ok {
 			ti.selectionEnd = selectionEndInt
+		}
+	}
+	cbMap["maxLength"] = func(maxLength any) {
+		if maxLengthInt, ok := maxLength.(int32); ok && maxLengthInt != ti.maxLength {
+			ti.maxLength = maxLengthInt
+		}
+	}
+	cbMap["bounds"] = func(bounds any) {
+		if boundsStruct, ok := bounds.(struct {
+			X      int32
+			Y      int32
+			Width  int32
+			Height int32
+		}); ok {
+			ti.position.X = boundsStruct.X
+			ti.position.Y = boundsStruct.Y
+			ti.size.Width = boundsStruct.Width
+			ti.size.Height = boundsStruct.Height
 		}
 	}
 	ti.state.CbMap = cbMap

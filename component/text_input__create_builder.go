@@ -31,10 +31,10 @@ func newCreateTextInputOptions() *createTextInputOptions {
 // It takes a string as the value and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - value: The string value to set for the text input component.
+//   - value: The string value to set for the text input component.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputValueOpt(value string) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.Value = value
@@ -45,10 +45,10 @@ func TextInputValueOpt(value string) CreateTextInputOption {
 // It takes an int32 as the maximum length and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - maxLength: The maximum number of characters allowed in the text input component.
+//   - maxLength: The maximum number of characters allowed in the text input component.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputMaxLengthOpt(maxLength int32) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.MaxLength = maxLength
@@ -59,10 +59,10 @@ func TextInputMaxLengthOpt(maxLength int32) CreateTextInputOption {
 // It takes a pointer to a common.Color and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - color: The background color to set for the text input component.
+//   - color: The background color to set for the text input component.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputColorOpt(color *common.Color) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.Color = color
@@ -73,10 +73,10 @@ func TextInputColorOpt(color *common.Color) CreateTextInputOption {
 // It takes a pointer to a common.Color and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - textColor: The text color to set for the text input component.
+//   - textColor: The text color to set for the text input component.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputTextColorOpt(textColor *common.Color) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.TextColor = textColor
@@ -87,10 +87,10 @@ func TextInputTextColorOpt(textColor *common.Color) CreateTextInputOption {
 // It takes an int32 as the text size and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - textSize: The size of the text in points.
+//   - textSize: The size of the text in points.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputTextSizeOpt(textSize int32) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.TextSize = textSize
@@ -101,10 +101,10 @@ func TextInputTextSizeOpt(textSize int32) CreateTextInputOption {
 // It takes a TextAlignment value and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - textAlignment: The alignment to set for the text in the text input component.
+//   - textAlignment: The alignment to set for the text in the text input component.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputTextAlignmentOpt(textAlignment TextAlignment) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.TextAlignment = textAlignment
@@ -115,10 +115,10 @@ func TextInputTextAlignmentOpt(textAlignment TextAlignment) CreateTextInputOptio
 // It takes a variadic list of CreateComponentOption and returns a CreateTextInputOption function.
 //
 // Parameters:
-//  - componentOptions: Additional options to apply to the text input component.
+//   - componentOptions: Additional options to apply to the text input component.
 //
 // Returns:
-//  - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
+//   - CreateTextInputOption: A function that takes a pointer to createTextInputOptions
 func TextInputComponentOptionsOpt(componentOptions ...CreateComponentOption) CreateTextInputOption {
 	return func(opts *createTextInputOptions) {
 		opts.ComponentOptions = componentOptions
