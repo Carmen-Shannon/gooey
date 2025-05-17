@@ -19,7 +19,7 @@ func handleButtonCallbacks(id uintptr, found, doCb bool) {
 				cb(doCb)
 			}
 			if cb, ok := cbMap["onClick"]; doCb && ok {
-				cb(nil)
+				go cb(nil)
 			}
 		} else {
 			if cb, ok := cbMap["pressed"]; ok {
