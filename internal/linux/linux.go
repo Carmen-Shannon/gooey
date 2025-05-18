@@ -4,17 +4,20 @@
 package linux
 
 /*
-#cgo LDFLAGS: -lX11
+#cgo LDFLAGS: -lX11 -lXrender
 #include <X11/Xlib.h>
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
 #include <X11/cursorfont.h>
+#include <X11/extensions/Xrender.h>
 #include <stdlib.h>
 #define GO_FALSE 0
 #define GO_TRUE 1
 #define GO_CLIENT_MESSAGE 33
 #define GO_SUBSTRUCTURE_REDIRECT_MASK (1L<<20)
 #define GO_SUBSTRUCTURE_NOTIFY_MASK (1L<<19)
+
+void gooey_x11_init_threads() { XInitThreads(); }
 
 void set_client_message_event(
     XEvent *event,
@@ -39,6 +42,7 @@ void set_client_message_event(
 */
 import "C"
 import (
+	"runtime"
 	"sync"
 	"unsafe"
 
@@ -69,6 +73,12 @@ var (
 	buttonCbMapMu       sync.Mutex
 	textInputStateMap   = make(map[uintptr]*common.TextInputState)
 	textInputStateMapMu sync.Mutex
+	selectorStateMap    = make(map[uintptr]*common.SelectorState)
+	selectorStateMapMu  sync.Mutex
+
+	overlay          *selectorOverlay
+	fallbackSelector *fallbackSelectorState
+	argbSelector     *argbOverlay
 
 	// Caret Ticker \\
 	CT   = common.NewCaretTicker()
@@ -115,6 +125,36 @@ const (
 	doubleClickThresholdMs = 400
 	doubleClickMaxDist     = 4
 )
+
+type fallbackSelectorState struct {
+	display       *C.Display
+	inputWin      C.Window // Fullscreen InputOnly overlay (invisible, intercepts all input)
+	selectorWin   C.Window // Top-level InputOutput window for the selector rectangle
+	screen        C.int
+	active        bool
+	selectorDrawn bool
+}
+
+type argbOverlay struct {
+	display  *C.Display
+	window   C.Window
+	screen   C.int
+	visual   *C.XVisualInfo
+	colormap C.Colormap
+	active   bool
+}
+
+type selectorOverlay struct {
+	display *C.Display
+	window  C.Window
+	screen  C.int
+	gc      C.GC
+	active  bool
+}
+
+func init() {
+	C.gooey_x11_init_threads()
+}
 
 func WindowProc(hwnd uintptr, display *C.Display, event *C.XEvent) bool {
 	switch EventType(event) {
@@ -598,6 +638,446 @@ func UnregisterDisplay(hwnd uintptr) {
 	delete(displayMap, hwnd)
 }
 
+func getScreenSize(display *C.Display, screen C.int) (int, int) {
+	width := int(C.XDisplayWidth(display, screen))
+	height := int(C.XDisplayHeight(display, screen))
+	return width, height
+}
+
+// ForceSelectorOverlayRedraw triggers an Expose event on the overlay window to force a redraw.
+func ForceSelectorOverlayRedraw() {
+	if overlay == nil || !overlay.active {
+		return
+	}
+	var event C.XEvent
+	(*(*C.int)(unsafe.Pointer(&event))) = C.Expose
+	C.XSendEvent(overlay.display, overlay.window, 0, 0, &event)
+	C.XFlush(overlay.display)
+}
+
+// Find a 32-bit TrueColor visual
+func findARGBVisual(display *C.Display, screen C.int) *C.XVisualInfo {
+	var vinfo C.XVisualInfo
+	vinfo.depth = 32
+
+	// Set the 'class' field (hack, since cgo does not expose it directly)
+	classOffset := unsafe.Offsetof(vinfo.depth) + unsafe.Sizeof(vinfo.depth)
+	classPtr := (*C.int)(unsafe.Pointer(uintptr(unsafe.Pointer(&vinfo)) + classOffset))
+	*classPtr = C.TrueColor
+
+	var n C.int
+	visuals := C.XGetVisualInfo(display, C.VisualDepthMask|C.VisualClassMask, &vinfo, &n)
+	if visuals != nil && n > 0 {
+		visualArr := (*[1 << 16]C.XVisualInfo)(unsafe.Pointer(visuals))[:n:n]
+		for i := 0; i < int(n); i++ {
+			if visualArr[i].screen == screen {
+				return &visualArr[i]
+			}
+		}
+		return &visualArr[0]
+	}
+	return nil
+}
+
+// Launch the ARGB selector overlay on a new thread
+func LaunchSelectorOverlayOnThread(sID uintptr) {
+	go func() {
+		runtime.LockOSThread()
+		state := GetSelectorState(sID)
+		if state == nil {
+			return
+		}
+
+		display := C.XOpenDisplay(nil)
+		if display == nil {
+			panic("Cannot open X display")
+		}
+		screen := C.XDefaultScreen(display)
+		root := C.XRootWindow(display, screen)
+		screenW := C.XDisplayWidth(display, screen)
+		screenH := C.XDisplayHeight(display, screen)
+
+		visual := findARGBVisual(display, screen)
+		if visual == nil {
+			C.XCloseDisplay(display)
+			panic("No 32-bit TrueColor visual found")
+		}
+
+		colormap := C.XCreateColormap(display, root, visual.visual, C.AllocNone)
+
+		var attrs C.XSetWindowAttributes
+		attrs.colormap = colormap
+		attrs.background_pixel = 0 // fully transparent
+		attrs.border_pixel = 0
+		attrs.override_redirect = 1
+
+		win := C.XCreateWindow(
+			display, root,
+			0, 0, C.uint(screenW), C.uint(screenH),
+			0,
+			visual.depth,
+			C.InputOutput,
+			visual.visual,
+			C.CWColormap|C.CWBackPixel|C.CWBorderPixel|C.CWOverrideRedirect,
+			&attrs,
+		)
+		if win == 0 {
+			C.XCloseDisplay(display)
+			panic("Failed to create ARGB overlay window")
+		}
+
+		C.XMapRaised(display, win)
+		C.XFlush(display)
+
+		argbSelector = &argbOverlay{display, win, screen, visual, colormap, true}
+
+		// Select input events
+		C.XSelectInput(display, win, C.ExposureMask|C.ButtonPressMask|C.ButtonReleaseMask|C.PointerMotionMask|C.KeyPressMask)
+
+		var (
+			startX, startY int32
+			curX, curY     int32
+			dragging       bool
+		)
+
+		// Helper to draw the overlay
+		drawOverlay := func(rect common.Rect, color *common.Color, opacity float32) {
+			// Use XRender to draw a semi-transparent rectangle
+			pictFormat := C.XRenderFindVisualFormat(display, visual.visual)
+			pictWin := C.XRenderCreatePicture(display, C.Drawable(win), pictFormat, 0, nil)
+			defer C.XRenderFreePicture(display, pictWin)
+
+			// Clear the window (fully transparent)
+			C.XClearWindow(display, win)
+
+			// Prepare color with alpha
+			alpha := uint16(opacity * 65535)
+			renderColor := C.XRenderColor{
+				red:   C.ushort(color.Red) * 257,
+				green: C.ushort(color.Green) * 257,
+				blue:  C.ushort(color.Blue) * 257,
+				alpha: C.ushort(alpha),
+			}
+
+			// Fill rectangle
+			C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &renderColor,
+				C.int(rect.X), C.int(rect.Y), C.uint(rect.W), C.uint(rect.H))
+
+			// Draw border (opaque)
+			borderColor := C.XRenderColor{
+				red:   0,
+				green: 0,
+				blue:  0,
+				alpha: 65535,
+			}
+			thick := 2
+			// Top
+			C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+				C.int(rect.X), C.int(rect.Y), C.uint(rect.W), C.uint(thick))
+			// Bottom
+			C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+				C.int(rect.X), C.int(rect.Y+rect.H-int32(thick)), C.uint(rect.W), C.uint(thick))
+			// Left
+			C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+				C.int(rect.X), C.int(rect.Y), C.uint(thick), C.uint(rect.H))
+			// Right
+			C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+				C.int(rect.X+rect.W-int32(thick)), C.int(rect.Y), C.uint(thick), C.uint(rect.H))
+
+			C.XFlush(display)
+		}
+
+		// Initial overlay (full screen, transparent)
+		drawOverlay(common.Rect{X: 0, Y: 0, W: int32(screenW), H: int32(screenH)}, common.ColorBlack, 0.0)
+
+		for argbSelector.active {
+			var event C.XEvent
+			C.XNextEvent(display, &event)
+			eventType := int(*(*C.int)(unsafe.Pointer(&event)))
+
+			switch eventType {
+			case C.Expose:
+				currentState := GetSelectorState(sID)
+				if currentState != nil && currentState.Visible {
+					drawOverlay(currentState.Bounds, currentState.Color, currentState.Opacity)
+				}
+			case C.ButtonPress:
+				buttonEvent := (*C.XButtonEvent)(unsafe.Pointer(&event))
+				if buttonEvent.button == 1 && !dragging {
+					startX, startY = int32(buttonEvent.x_root), int32(buttonEvent.y_root)
+					curX, curY = startX, startY
+					dragging = true
+					C.XGrabPointer(display, win, 1, C.ButtonPressMask|C.ButtonReleaseMask|C.PointerMotionMask,
+						C.GrabModeAsync, C.GrabModeAsync, C.None, C.None, C.CurrentTime)
+					UpdateSelectorState(sID, common.UpdateSelectorDrawing(true), common.UpdateSelectorBlocking(true))
+					drawOverlay(common.Rect{X: startX, Y: startY, W: 0, H: 0}, state.Color, state.Opacity)
+				}
+			case C.MotionNotify:
+				if dragging {
+					motionEvent := (*C.XMotionEvent)(unsafe.Pointer(&event))
+					curX, curY = int32(motionEvent.x_root), int32(motionEvent.y_root)
+					rectX, rectY := startX, startY
+					rectW, rectH := curX-startX, curY-startY
+					if rectW < 0 {
+						rectX = curX
+						rectW = -rectW
+					}
+					if rectH < 0 {
+						rectY = curY
+						rectH = -rectH
+					}
+					newBounds := common.Rect{X: rectX, Y: rectY, W: rectW, H: rectH}
+					UpdateSelectorState(sID, common.UpdateSelectorBounds(newBounds))
+					drawOverlay(newBounds, state.Color, state.Opacity)
+				}
+			case C.ButtonRelease:
+				buttonEvent := (*C.XButtonEvent)(unsafe.Pointer(&event))
+				if buttonEvent.button == 1 && dragging {
+					dragging = false
+					C.XUngrabPointer(display, C.CurrentTime)
+					rectX, rectY := startX, startY
+					rectW, rectH := curX-startX, curY-startY
+					if rectW < 0 {
+						rectX = curX
+						rectW = -rectW
+					}
+					if rectH < 0 {
+						rectY = curY
+						rectH = -rectH
+					}
+					finalBounds := common.Rect{X: rectX, Y: rectY, W: rectW, H: rectH}
+					UpdateSelectorState(sID,
+						common.UpdateSelectorBounds(finalBounds),
+						common.UpdateSelectorBlocking(false),
+						common.UpdateSelectorDrawing(false),
+						common.UpdateSelectorVisible(false),
+					)
+					drawOverlay(finalBounds, state.Color, state.Opacity)
+					argbSelector.active = false
+				}
+			case C.KeyPress:
+				keyEvent := (*C.XKeyEvent)(unsafe.Pointer(&event))
+				keysym := C.XLookupKeysym(keyEvent, 0)
+				if keysym == C.XK_Escape {
+					UpdateSelectorState(sID,
+						common.UpdateSelectorBlocking(false),
+						common.UpdateSelectorDrawing(false),
+						common.UpdateSelectorVisible(false),
+					)
+					argbSelector.active = false
+				}
+			}
+		}
+
+		C.XDestroyWindow(display, win)
+		C.XFreeColormap(display, colormap)
+		C.XCloseDisplay(display)
+		argbSelector = nil
+	}()
+}
+
+func CreateSelectorOverlay(x, y, w, h int32) {
+	display := C.XOpenDisplay(nil)
+	if display == nil {
+		panic("Cannot open X display")
+	}
+	screen := C.XDefaultScreen(display)
+	root := C.XRootWindow(display, screen)
+
+	visual := findARGBVisual(display, screen)
+	if visual != nil {
+		// ...existing ARGB path unchanged...
+		colormap := C.XCreateColormap(display, root, visual.visual, C.AllocNone)
+		var attrs C.XSetWindowAttributes
+		attrs.colormap = colormap
+		attrs.override_redirect = 1
+		attrs.background_pixel = 0 // fully transparent
+
+		win := C.XCreateWindow(
+			display, root,
+			C.int(x), C.int(y), C.uint(w), C.uint(h),
+			0,
+			visual.depth,
+			C.InputOutput,
+			visual.visual,
+			C.CWColormap|C.CWBackPixel|C.CWOverrideRedirect,
+			&attrs,
+		)
+		C.XMapWindow(display, win)
+		C.XFlush(display)
+
+		argbSelector = &argbOverlay{
+			display:  display,
+			window:   win,
+			screen:   screen,
+			visual:   visual,
+			colormap: colormap,
+			active:   true,
+		}
+		fallbackSelector = nil
+		return
+	}
+
+	// Fallback: 2 top-level windows
+	var attrs C.XSetWindowAttributes
+	attrs.override_redirect = 1
+	attrs.event_mask = C.ButtonPressMask | C.ButtonReleaseMask | C.PointerMotionMask | C.KeyPressMask
+
+	screenW := C.XDisplayWidth(display, screen)
+	screenH := C.XDisplayHeight(display, screen)
+	inputWin := C.XCreateWindow(
+		display, root,
+		0, 0, C.uint(screenW), C.uint(screenH),
+		0,
+		0, // depth
+		C.InputOnly,
+		C.XDefaultVisual(display, screen),
+		C.CWOverrideRedirect|C.CWEventMask,
+		&attrs,
+	)
+	C.XMapRaised(display, inputWin)
+	C.XFlush(display)
+
+	fallbackSelector = &fallbackSelectorState{
+		display:       display,
+		inputWin:      inputWin,
+		screen:        screen,
+		active:        true,
+		selectorDrawn: false,
+		selectorWin:   0,
+	}
+	argbSelector = nil
+}
+
+// UpdateSelectorOverlay draws or updates the selector rectangle as a separate top-level window.
+func UpdateSelectorOverlay(x, y, w, h int32, color *common.Color, opacity float32) {
+	// ARGB path unchanged...
+	if argbSelector != nil && argbSelector.active {
+        display := argbSelector.display
+        win := argbSelector.window
+        visual := argbSelector.visual
+
+        // Use XRender to draw a semi-transparent rectangle
+        pictFormat := C.XRenderFindVisualFormat(display, visual.visual)
+        pictWin := C.XRenderCreatePicture(display, C.Drawable(win), pictFormat, 0, nil)
+        defer C.XRenderFreePicture(display, pictWin)
+
+        // Clear the window (fully transparent)
+        C.XClearWindow(display, win)
+
+        // Prepare color with alpha
+        alpha := uint16(opacity * 65535)
+        renderColor := C.XRenderColor{
+            red:   C.ushort(color.Red) * 257,
+            green: C.ushort(color.Green) * 257,
+            blue:  C.ushort(color.Blue) * 257,
+            alpha: C.ushort(alpha),
+        }
+
+        // Fill rectangle
+        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &renderColor,
+            C.int(x), C.int(y), C.uint(w), C.uint(h))
+
+        // Draw border (opaque)
+        borderColor := C.XRenderColor{
+            red:   0,
+            green: 0,
+            blue:  0,
+            alpha: 65535,
+        }
+        thick := 2
+        // Top
+        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+            C.int(x), C.int(y), C.uint(w), C.uint(thick))
+        // Bottom
+        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+            C.int(x), C.int(y+int32(h)-int32(thick)), C.uint(w), C.uint(thick))
+        // Left
+        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+            C.int(x), C.int(y), C.uint(thick), C.uint(h))
+        // Right
+        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+            C.int(x+int32(w)-int32(thick)), C.int(y), C.uint(thick), C.uint(h))
+
+        C.XFlush(display)
+        return
+    }
+
+	// Fallback: 2-window path
+	if fallbackSelector != nil && fallbackSelector.active {
+		display := fallbackSelector.display
+		screen := fallbackSelector.screen
+		root := C.XRootWindow(display, screen)
+
+		// Destroy previous selector window if it exists
+		if fallbackSelector.selectorDrawn && fallbackSelector.selectorWin != 0 {
+			C.XUnmapWindow(display, fallbackSelector.selectorWin)
+			C.XDestroyWindow(display, fallbackSelector.selectorWin)
+			fallbackSelector.selectorWin = 0
+			fallbackSelector.selectorDrawn = false
+		}
+
+		// Only draw if w/h > 0
+		if w > 0 && h > 0 {
+			var attrs C.XSetWindowAttributes
+			attrs.override_redirect = 1
+			attrs.background_pixel = C.ulong((uint32(color.Red) << 16) | (uint32(color.Green) << 8) | uint32(color.Blue))
+			attrs.event_mask = 0
+
+			selectorWin := C.XCreateWindow(
+				display, root, // Top-level, NOT a child of InputOnly window!
+				C.int(x), C.int(y), C.uint(w), C.uint(h),
+				0,
+				C.CopyFromParent,
+				C.InputOutput,
+				C.XDefaultVisual(display, screen),
+				C.CWBackPixel|C.CWOverrideRedirect,
+				&attrs,
+			)
+			C.XMapRaised(display, selectorWin)
+			C.XFlush(display)
+
+			// Draw border (black)
+			gc := C.XCreateGC(display, selectorWin, 0, nil)
+			C.XSetForeground(display, gc, 0)
+			thick := 2
+			C.XFillRectangle(display, selectorWin, gc, 0, 0, C.uint(w), C.uint(thick))
+			C.XFillRectangle(display, selectorWin, gc, 0, C.int(h)-C.int(thick), C.uint(w), C.uint(thick))
+			C.XFillRectangle(display, selectorWin, gc, 0, 0, C.uint(thick), C.uint(h))
+			C.XFillRectangle(display, selectorWin, gc, C.int(w)-C.int(thick), 0, C.uint(thick), C.uint(h))
+			C.XFreeGC(display, gc)
+
+			fallbackSelector.selectorWin = selectorWin
+			fallbackSelector.selectorDrawn = true
+		}
+	}
+}
+
+// DestroySelectorOverlay cleans up both windows in the fallback path.
+func DestroySelectorOverlay() {
+	if argbSelector != nil {
+		C.XUnmapWindow(argbSelector.display, argbSelector.window)
+		C.XDestroyWindow(argbSelector.display, argbSelector.window)
+		C.XFreeColormap(argbSelector.display, argbSelector.colormap)
+		C.XCloseDisplay(argbSelector.display)
+		argbSelector = nil
+	}
+	if fallbackSelector != nil {
+		if fallbackSelector.selectorDrawn && fallbackSelector.selectorWin != 0 {
+			C.XUnmapWindow(fallbackSelector.display, fallbackSelector.selectorWin)
+			C.XDestroyWindow(fallbackSelector.display, fallbackSelector.selectorWin)
+		}
+		C.XUnmapWindow(fallbackSelector.display, fallbackSelector.inputWin)
+		C.XDestroyWindow(fallbackSelector.display, fallbackSelector.inputWin)
+		C.XCloseDisplay(fallbackSelector.display)
+		fallbackSelector = nil
+	}
+}
+
+func SelectorOverlayActive() bool {
+	return (argbSelector != nil && argbSelector.active) || (fallbackSelector != nil && fallbackSelector.active)
+}
+
 // RegisterDrawCallback registers a callback function to be called when the window needs to be redrawn.
 // It takes a window handle and a callback function as parameters.
 //
@@ -844,4 +1324,65 @@ func IsCustomCursorDraw() bool {
 	customCursorDrawMu.Lock()
 	defer customCursorDrawMu.Unlock()
 	return customCursorDraw
+}
+
+// RegisterSelectorState registers the state of a selector control.
+// It is used to track the state of the selector control, including its bounds and other properties.
+// This is useful for handling selector events and managing the state of the selector control.
+//
+// Parameters:
+//   - componentID: The ID of the component associated with the selector control
+//   - state: A pointer to a common.SelectorState struct representing the state of the selector control
+func RegisterSelectorState(componentID uintptr, state *common.SelectorState) {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	selectorStateMap[componentID] = state
+}
+
+// GetSelectorState retrieves the state of a selector control.
+// It is used to get the current state of the selector control, including its bounds and other properties.
+// This is useful for handling selector events and managing the state of the selector control.
+//
+// Parameters:
+//   - componentID: The ID of the component associated with the selector control
+//   - updates: A variadic number of update functions to modify the state
+func UpdateSelectorState(componentID uintptr, updates ...common.UpdateSelectorState) {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	state, ok := selectorStateMap[componentID]
+	if !ok {
+		return
+	}
+	for _, update := range updates {
+		update(state)
+	}
+}
+
+// GetSelectorState retrieves the state of a selector control.
+// It is used to get the current state of the selector control, including its bounds and other properties.
+//
+// Parameters:
+//   - componentID: The ID of the component associated with the selector control
+//
+// Returns:
+//   - *common.SelectorState: A pointer to a common.SelectorState struct representing the state of the selector control
+func GetSelectorState(componentID uintptr) *common.SelectorState {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	return selectorStateMap[componentID]
+}
+
+// GetAllSelectorStates retrieves all selector states.
+// It is used to get the current states of all selector controls, including their bounds and other properties.
+//
+// Returns:
+//   - []*common.SelectorState: A slice of pointers to common.SelectorState structs representing the states of all selector controls
+func GetAllSelectorStates() []*common.SelectorState {
+	selectorStateMapMu.Lock()
+	defer selectorStateMapMu.Unlock()
+	states := make([]*common.SelectorState, 0, len(selectorStateMap))
+	for _, state := range selectorStateMap {
+		states = append(states, state)
+	}
+	return states
 }

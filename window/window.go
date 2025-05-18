@@ -17,6 +17,7 @@ type wdw struct {
 	Width           int32
 	Title           string
 	BackgroundColor common.Color
+	redraw          chan struct{}
 	Components      []component.Component
 }
 
