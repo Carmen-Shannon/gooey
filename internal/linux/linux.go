@@ -790,7 +790,7 @@ func LaunchSelectorOverlayOnThread(sID uintptr) {
 		// Initial overlay (full screen, transparent)
 		drawOverlay(common.Rect{X: 0, Y: 0, W: int32(screenW), H: int32(screenH)}, common.ColorBlack, 0.0)
 
-		for argbSelector.active {
+		for argbSelector != nil && argbSelector.active {
 			var event C.XEvent
 			C.XNextEvent(display, &event)
 			eventType := int(*(*C.int)(unsafe.Pointer(&event)))
@@ -866,6 +866,9 @@ func LaunchSelectorOverlayOnThread(sID uintptr) {
 					)
 					argbSelector.active = false
 				}
+			}
+			if argbSelector == nil || !argbSelector.active {
+				break
 			}
 		}
 
@@ -953,55 +956,55 @@ func CreateSelectorOverlay(x, y, w, h int32) {
 func UpdateSelectorOverlay(x, y, w, h int32, color *common.Color, opacity float32) {
 	// ARGB path unchanged...
 	if argbSelector != nil && argbSelector.active {
-        display := argbSelector.display
-        win := argbSelector.window
-        visual := argbSelector.visual
+		display := argbSelector.display
+		win := argbSelector.window
+		visual := argbSelector.visual
 
-        // Use XRender to draw a semi-transparent rectangle
-        pictFormat := C.XRenderFindVisualFormat(display, visual.visual)
-        pictWin := C.XRenderCreatePicture(display, C.Drawable(win), pictFormat, 0, nil)
-        defer C.XRenderFreePicture(display, pictWin)
+		// Use XRender to draw a semi-transparent rectangle
+		pictFormat := C.XRenderFindVisualFormat(display, visual.visual)
+		pictWin := C.XRenderCreatePicture(display, C.Drawable(win), pictFormat, 0, nil)
+		defer C.XRenderFreePicture(display, pictWin)
 
-        // Clear the window (fully transparent)
-        C.XClearWindow(display, win)
+		// Clear the window (fully transparent)
+		C.XClearWindow(display, win)
 
-        // Prepare color with alpha
-        alpha := uint16(opacity * 65535)
-        renderColor := C.XRenderColor{
-            red:   C.ushort(color.Red) * 257,
-            green: C.ushort(color.Green) * 257,
-            blue:  C.ushort(color.Blue) * 257,
-            alpha: C.ushort(alpha),
-        }
+		// Prepare color with alpha
+		alpha := uint16(opacity * 65535)
+		renderColor := C.XRenderColor{
+			red:   C.ushort(color.Red) * 257,
+			green: C.ushort(color.Green) * 257,
+			blue:  C.ushort(color.Blue) * 257,
+			alpha: C.ushort(alpha),
+		}
 
-        // Fill rectangle
-        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &renderColor,
-            C.int(x), C.int(y), C.uint(w), C.uint(h))
+		// Fill rectangle
+		C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &renderColor,
+			C.int(x), C.int(y), C.uint(w), C.uint(h))
 
-        // Draw border (opaque)
-        borderColor := C.XRenderColor{
-            red:   0,
-            green: 0,
-            blue:  0,
-            alpha: 65535,
-        }
-        thick := 2
-        // Top
-        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
-            C.int(x), C.int(y), C.uint(w), C.uint(thick))
-        // Bottom
-        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
-            C.int(x), C.int(y+int32(h)-int32(thick)), C.uint(w), C.uint(thick))
-        // Left
-        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
-            C.int(x), C.int(y), C.uint(thick), C.uint(h))
-        // Right
-        C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
-            C.int(x+int32(w)-int32(thick)), C.int(y), C.uint(thick), C.uint(h))
+		// Draw border (opaque)
+		borderColor := C.XRenderColor{
+			red:   0,
+			green: 0,
+			blue:  0,
+			alpha: 65535,
+		}
+		thick := 2
+		// Top
+		C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+			C.int(x), C.int(y), C.uint(w), C.uint(thick))
+		// Bottom
+		C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+			C.int(x), C.int(y+int32(h)-int32(thick)), C.uint(w), C.uint(thick))
+		// Left
+		C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+			C.int(x), C.int(y), C.uint(thick), C.uint(h))
+		// Right
+		C.XRenderFillRectangle(display, C.PictOpOver, pictWin, &borderColor,
+			C.int(x+int32(w)-int32(thick)), C.int(y), C.uint(thick), C.uint(h))
 
-        C.XFlush(display)
-        return
-    }
+		C.XFlush(display)
+		return
+	}
 
 	// Fallback: 2-window path
 	if fallbackSelector != nil && fallbackSelector.active {
